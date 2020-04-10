@@ -55,3 +55,30 @@ print("Files have been successfully separated into the three datasets and moved 
 ##########
 
 frameRate = 0.1 
+
+def getFrame(vid, sec, path, filename):
+  vid.set(cv2.CAP_PROP_POS_MSEC, sec*1000)
+  hasFrames, image = vid.read()
+  if hasFrames:
+    cv2.imwrite(path + '/frames/' + filename + "_frame"+str(count)+".jpg", image)
+    return hasFrames
+
+for subdir_level_one in os.listdir(dataset):
+  subdir_path_level_one = dataset + '/' + subdir_level_one
+  if os.path.isdir(subdir_path_level_one):
+    for subdir_level_two in os.listdir(subdir_path_level_one):
+      subdir_path_level_two = subdir_path_level_one + '/' + subdir_level_two
+      if os.path.isdir(subdir_path_level_two):
+        for video in os.listdir(subdir_path_level_two):
+          if video.endswith('.mp4'):
+            count = 1
+            sec = 0
+            vidcap = cv2.VideoCapture(subdir_path_level_two + '/' + video)
+            success = getFrame(vidcap, sec, subdir_path_level_two, video)
+            while success:
+              count = count + 1
+              sec = sec + frameRate
+              sec = round(sec, 2)
+              success = getFrame(vidcap, sec, subdir_path_level_two, video)
+
+print("Videos have been successfully separated into image frames and all the image frames have been saved in their respective folder locations.")
