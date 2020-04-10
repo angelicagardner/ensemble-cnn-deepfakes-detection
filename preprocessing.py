@@ -1,47 +1,57 @@
 import cv2
 import os
-from shutil import copyfile
+import shutil
 import numpy as np
 
-# Shuffle the videos for a dataset and split it into train, validation, and test
+##########
+# Split a dataset into train, validation, and test
+##########
+
 dataset = os.getcwd() + '/data' + '/celeb-df'
-train_set = dataset + '/train/1_fake'
-val_set = dataset + '/validation/1_fake'
-test_set = dataset + '/test/1_fake'
+# dataset = os.getcwd() + '/data' + '/deepfakedetection'
 
-x = np.arange(len(os.listdir(dataset + '/videos/fake')))
-np.random.shuffle(x)
-train, validation, test = np.split(x, [int(.8 * len(x)), int(.9 * len(x))])
+train_set_real = dataset + '/train/0_real'
+train_set_fake = dataset + '/train/1_fake'
+val_set_real = dataset + '/validation/0_real'
+val_set_fake = dataset + '/validation/1_fake'
+test_set_real = dataset + '/test/0_real'
+test_set_fake = dataset + '/test/1_fake'
 
-for v in train:
-  video = os.listdir(dataset + '/videos/fake')[v]
-  copyfile(dataset + '/videos/fake/' + video, train_set + '/' + video)
+original_folder_real = dataset + '/videos/real' # Replace this folder location with where you've stored the full video dataset of real videos
+original_folder_fake = dataset + '/videos/fake' # Replace this folder location with where you've stored the full video dataset of fake videos
 
-for v in validation:
-  video = os.listdir(dataset + '/videos/fake')[v]
-  copyfile(dataset + '/videos/fake/' + video, val_set + '/' + video)
+x_real = np.arange(len(os.listdir(original_folder_real)))
+x_fake = np.arange(len(os.listdir(original_folder_fake)))
+np.random.shuffle(x_real)
+np.random.shuffle(x_fake)
+train_real, validation_real, test_real = np.split(x_real, [int(.8 * len(x_real)), int(.9 * len(x_real))])
+train_fake, validation_fake, test_fake = np.split(x_fake, [int(.8 * len(x_fake)), int(.9 * len(x_fake))])
 
-for v in test:
-  video = os.listdir(dataset + '/videos/fake')[v]
-  copyfile(dataset + '/videos/fake/' + video, test_set + '/' + video)
+for v in train_real:
+  video = os.listdir(original_folder_real)[v]
+  shutil.copyfile(original_folder_real + '/' + video, train_set_real + '/' + video)
+for v in train_fake:
+  video = os.listdir(original_folder_fake)[v]
+  shutil.copyfile(original_folder_fake + '/' + video, train_set_fake + '/' + video)
 
-# 2. Separate each video into frames
+for v in validation_real:
+  video = os.listdir(original_folder_real)[v]
+  shutil.copyfile(original_folder_real + '/' + video, val_set_real + '/' + video)
+for v in validation_fake:
+  video = os.listdir(original_folder_fake)[v]
+  shutil.copyfile(original_folder_fake + '/' + video, val_set_fake + '/' + video)
 
-#vidcap = cv2.VideoCapture('id0_id4_0005.mp4')
+for v in test_real:
+  video = os.listdir(original_folder_real)[v]
+  shutil.copyfile(original_folder_real + '/' + video, test_set_real + '/' + video)
+for v in test_fake:
+  video = os.listdir(original_folder_fake)[v]
+  shutil.copyfile(original_folder_fake + '/' + video, test_set_fake + '/' + video)
 
-#def getFrame(sec):
-  #vidcap.set(cv2.CAP_PROP_POS_MSEC, sec*1000)
-  #hasFrames, image = vidcap.read()
-  #if hasFrames:
-    #cv2.imwrite("image"+str(count)+".jpg", image) # save frame as JPG fle
-    #return hasFrames
+print("Files have been successfully separated into the three datasets and moved into their respective folders.")
 
-sec = 0
+##########
+# Separate videos into image frames
+##########
+
 frameRate = 0.1 
-count = 1
-#success = getFrame(sec)
-#while success:
-  #count = count + 1
-  #sec = sec + frameRate
-  #sec = round(sec, 2)
-  #success = getFrame(sec)
