@@ -4,7 +4,9 @@ This project contains the source code of all experiments described in 'Degree Pr
 > ...
 ## 1. Project folder structure
 - Datasets folder, where you can place your training, evaluation, and test sets:
-```./data ```
+```
+      ./data
+```
 - Pre-trained models folder, where the fitted models trained with its default settings described in the associated paper are provided here:
 ```
       ./models
