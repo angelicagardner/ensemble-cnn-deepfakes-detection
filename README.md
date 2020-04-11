@@ -3,11 +3,20 @@ This project contains the source code of all experiments described in 'Degree Pr
 ## Abstract
 > ...
 ## 1. Project folder structure
-- *Data* folder for placing train, validation, and test
-- *Models* folder where the fitted models will be stored
-## 2. Datasets used
+- Datasets folder, where you can place your training, evaluation, and test sets:
+      ./data
+- Pre-trained models folder, where the fitted models trained with its default settings described in the associated paper are provided here:
+      ./models
+## 2. Datasets
+Each dataset has two parts:
+- Real videos: ./data/<name>/<train;validation;test>/0_real_videos
+- Real images: ./data/<name>/<train;test;validation>/0_real_images
+- Fake videos: ./data/<name>/<train;test;validation>/1_fake_videos
+- Fake images: ./data/<name>/<train;test;validation>/1_fake_images
+**Note**: When videos need to be separated into frames (images) the script *./preprocessing.py* can be used.
+## 3. Training
 ...
-## 3. Reproducing the paper
+## 4. Evaluating
 ...
 ### Requirements
 See file requirements.txt
