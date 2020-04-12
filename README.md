@@ -7,11 +7,14 @@ This project contains the source code of all experiments described in 'Degree Pr
 ```
       ./data
 ```
-- Pre-trained models folder, where the fitted models trained with its default settings described in the associated paper are provided here:
+- Pre-trained models folder, with default settings described in each associated paper:
 ```
-      ./models
+      ./checkpoints
 ```
 ## 2. Datasets
+### Celeb-DF
+Dataset can be downloaded [here](https://github.com/danmohaha/celeb-deepfakeforensics#download).
+
 Each dataset has two parts:
 - Real videos: ./data/<dataset_name>/<train;validation;test>/0_real_videos
 - Real images: ./data/<dataset_name>/<train;test;validation>/0_real_images
@@ -25,9 +28,15 @@ Each dataset has two parts:
 ...
 ### Requirements
 See file *requirements.txt*
-## Cite
+## Citation
 This research was carried out while the author studied at Linneaus University, Sweden.
 If you use this code or research as a reference, please cite:
 ```
 ...
 ```
+or reference (IEEE):
+```
+...
+```
+#### Notice
+This repository is provided "AS IS" and the copyright holders and contributors are not responsible for any subsequence of using this code.
