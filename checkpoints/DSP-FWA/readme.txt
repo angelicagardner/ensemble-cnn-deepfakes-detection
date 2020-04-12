@@ -1,0 +1,2 @@
+Because of large file size, the ResNet-50 based SSPNet model couldn't be uploaded togehter with this repository. Instead, the checkpoint can be downloaded here:
+https://drive.google.com/file/d/13wbA5kHRGODBDdiJ2gPeB1XK4KiCh-Im/view?usp=sharing
