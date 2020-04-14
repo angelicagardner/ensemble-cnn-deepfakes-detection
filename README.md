@@ -11,9 +11,9 @@ This project contains the source code of all experiments described in 'Degree Pr
 
 ## 1. Project structure
 
-- Datasets folder, where you can place all videos
+- Datasets folder where you can place all videos
 ```
-      ./data
+    ./data/videos
 ```
 
 
@@ -30,16 +30,13 @@ See file *requirements.txt*
 ## Datasets
 
 1. Download the datasets.
+2. Put all videos into the same directory (e.g. `./data/videos`).
 
 ### Celeb-DF
 The dataset can be downloaded [here](https://github.com/danmohaha/celeb-deepfakeforensics#download).
 
 ### DeepFakeDetection
 The dataset can be downloaded together with the regular FaceForensics++ dataset found [here](https://github.com/ondyari/FaceForensics/#access).
-
-2. Put all videos into the same directory (e.g. `./data`).
-
-3. Videos need to be separated into frames (images) and divided into train,validation,test splits. Here, the script *preprocessing.py* will be used.
 
 
 ## Training
