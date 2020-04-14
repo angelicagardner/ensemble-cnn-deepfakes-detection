@@ -1,7 +1,14 @@
 import cv2
-import os
+import os, csv
 import shutil
 import numpy as np
+
+with open('data/videos/videos.csv', 'w') as csv_file:
+    filewriter = csv.writer(csv_file, delimiter=',')
+    filewriter.writerow(['video_id', 'fake', 'original_dataset'])
+    for video in os.listdir('data/videos'):
+        if video.endswith('.mp4'):
+            filewriter.writerow([video, 0, 'celeb-df'])
 
 ##########
 # Split a dataset into train, validation, and test
@@ -51,7 +58,7 @@ for v in test_fake:
 print("Files have been successfully separated into the three datasets and moved into their respective folders.")
 
 ##########
-# Separate videos into image frames
+# Separate videos into frames
 ##########
 
 frameRate = 0.1 

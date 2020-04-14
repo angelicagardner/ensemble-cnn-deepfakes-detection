@@ -1,0 +1,6 @@
+opencv-python
+pandas
+pretrainedmodels
+sacred
+torch
+torchvision
