@@ -7,16 +7,18 @@ This project contains the source code of all experiments described in 'Degree Pr
 
 > Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
 > Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+> Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+> Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 
 ## Project structure
 
-- Datasets folder where you can place all videos.
+- Datasets folder for placing all videos.
 ```
     ./data/videos
 ```
 
-- Splits folder where the subsets for train, validation, and test splits will be placed.
+- Splits folder where information about the subsets for train, validation, and test splits will be located.
 ```
     ./data/splits
 ```
@@ -40,7 +42,7 @@ See file *requirements.txt* for all needed packages
 ## Datasets
 
 1. Download the datasets.
-2. Put all videos into the same directory (e.g. `./data/videos`).
+2. Put all videos into the same directory as a CSV-file with information about each video (e.g. `./data/videos`). Alternately, take a look at the file `data_sorting.py` for the code used in this research to organise the data.
 
 ### Celeb-DF
 The dataset can be downloaded [here](https://github.com/danmohaha/celeb-deepfakeforensics#download).
@@ -48,11 +50,15 @@ The dataset can be downloaded [here](https://github.com/danmohaha/celeb-deepfake
 ### DeepFakeDetection
 The dataset can be downloaded together with the regular FaceForensics++ dataset found [here](https://github.com/ondyari/FaceForensics/#access).
 
+### Deepfake Detection Challenge
+The small sample training set was used during this experiment. There's a much larger full training set also available that can be used to replace this smaller sample set.
+Both the small sample training set and the full training set can be downloaded [here](https://www.kaggle.com/c/deepfake-detection-challenge/data).
 
 ## Individual models
 
 ### (1)
 ### (2)
+### (3)
 
 
 ## Ensembles
