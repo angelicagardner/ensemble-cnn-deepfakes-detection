@@ -18,6 +18,10 @@ datasets = [dataset_celebdf, dataset_deepfakedetection, dataset_deepfakedetectio
 
 output_folder = path + '/data/videos/'
 
+with open(output_folder + 'videos.csv', 'a') as csv_file:
+  filewriter = csv.writer(csv_file, delimiter=',')
+  filewriter.writerow(['video_id','fake','original_dataset'])
+
 for dataset in datasets:
   for real_video in os.listdir(dataset + '/real'):
     if real_video.endswith('.mp4'):

@@ -18,14 +18,19 @@ This project contains the source code of all experiments described in 'Degree Pr
     ./data/videos
 ```
 
-- Splits folder where information about the subsets for train, validation, and test splits will be located.
+- Splits folder where information about subsets for train, validation, and test splits will be stored.
 ```
     ./data/splits
 ```
 
-- Models folder where you find the individual models implementations.
+- Models folder where you find individual model implementations.
 ```
     ./models/<model_name>
+```
+
+- Ensemble folder where you find the ensemble models.
+```
+    ./ensembles
 ```
 
 
