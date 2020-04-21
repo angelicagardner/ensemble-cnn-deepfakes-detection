@@ -84,6 +84,10 @@ or reference (IEEE):
 ...
 ```
 
+## Notice
 
-#### Notice
-This repository is provided "AS IS". The authors and contributors are not responsible for any subsequent usage of this code.
+This software and associated documentation files (the "Software") is provided "AS IS", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or contributors be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise,arising from, out of or in connection with the software or the use or other dealings in the software.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of the Software, to deal with it, including to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software subject to the following conditions:
+
+Files and software from other projects are subjected to their individual licenses and not included in this permission. Such files are located in subdirectories to the ```./models``` folder. A link to the license can be located in the header of the files affected by this condition.
