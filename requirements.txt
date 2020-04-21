@@ -1,7 +1,0 @@
-opencv-python
-pandas
-pretrainedmodels
-sacred
-scikit_learn
-torch
-torchvision
