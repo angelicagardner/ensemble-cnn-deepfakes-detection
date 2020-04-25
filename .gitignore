@@ -131,7 +131,6 @@ dmypy.json
 .pyre/
 
 # Dataset folders (project related)
-p.py
 celeb-df
 deepfakedetection
 deepfake-detection-challenge

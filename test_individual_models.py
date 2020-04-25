@@ -5,12 +5,16 @@ import pandas as pd
 import dlib
 import torch
 from torch.utils.data import DataLoader
+from torchvision import transforms
+from tqdm import tqdm
 
 from sacred import Experiment
 from sacred.observers import FileStorageObserver
 
-from data.dataset_loader import CSVDataset
+from data.dataset_loader import CSVDataset, CSVDatasetWithName
 
+from models.Capsule.Capsule import VggExtractor, CapsuleNet
+from models.DSP_FWA.DSP_FWA import SPPNet
 from models.XceptionNet.Xception import xception
 
 # Set up experiment
@@ -21,7 +25,7 @@ ex.observers.append(fs)
 # Add default configurations
 @ex.config
 def cfg():
-    videos = None  # path to videos
+    data_path = None  # path to video frames
     splits = None # path to split information
     train_csv = None  # path to train CSV
     val_csv = None  # path to validation CSV
@@ -34,7 +38,7 @@ def cfg():
 
 # Main function
 @ex.automain
-def main(videos, splits, train_csv, val_csv, test_csv, model_name, split_id, _run):
+def main(data_path, splits, train_csv, val_csv, test_csv, model_name, split_id, _run):
 
     path = os.getcwd()
 
@@ -44,20 +48,39 @@ def main(videos, splits, train_csv, val_csv, test_csv, model_name, split_id, _ru
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load model
-    if model_name == 'xceptionnet':
+    if model_name == "capsule":
+        vgg_ext = VggExtractor()
+        model = CapsuleNet(2, 0)
+        if torch.cuda.is_available():
+            checkpoint = torch.load(path + '/models/Capsule/capsule_21.pt')
+        else:
+            checkpoint = torch.load(path + '/models/Capsule/capsule_21.pt', map_location=torch.device('cpu'))
+        model.load_state_dict(checkpoint)
+        print("Model: Capsule")
+    elif model_name == 'dsp-fwa':
+        model = SPPNet(backbone=50, num_class=2)
+        if torch.cuda.is_available():
+            checkpoint = torch.load(path + '/models/DSP_FWA/SPP-res50.pth')
+        else:
+            checkpoint = torch.load(path + '/models/DSP_FWA/SPP-res50.pth', map_location=torch.device('cpu'))
+        model.load_state_dict(checkpoint['net'])
+        print("Model: DSP-FWA")
+    elif model_name == 'xceptionnet':
         model = xception()
         print("Model: Xception")
+    model.eval()
     model.to(device)    
 
-    # Go through dataset
-    with open(path + splits + test_csv) as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        line_count = 0
-        for row in csv_reader:
-            if line_count > 0:
-                video_name = row[0]
-                video = cv2.VideoCapture(path + videos + video_name)
+    # Load dataset
+    transform = transforms.Compose([
+        transforms.ToTensor()
+    ])
+    dataset = CSVDatasetWithName(data_path, splits + train_csv, 'image_id', 'deepfake', transform=transform)
+    dataloader = DataLoader(dataset)
 
-                face_detector = dlib.get_frontal_face_detector()
+    predictions = pd.DataFrame(columns=['image', 'label', 'score'])
 
-            line_count += 1
+    for i, data in enumerate(tqdm(dataloader)):
+       (inputs, labels), name = data
+
+    # Save sample image set

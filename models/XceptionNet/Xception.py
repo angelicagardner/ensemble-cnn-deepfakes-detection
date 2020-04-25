@@ -1,25 +1,14 @@
 """
-Ported to pytorch thanks to [tstandley](https://github.com/tstandley/Xception-PyTorch)
 
-@author: tstandley
-Adapted by cadene
+Copyright 2018
+Andreas Rössler, Davide Cozzolino, Luisa Verdoliva, Christian Riess, Justus Thies, Matthias Nießner
 
-Creates an Xception Model as defined in:
+Reproduced from:
+https://github.com/ondyari/FaceForensics/blob/master/classification/network/xception.py
 
-Francois Chollet
-Xception: Deep Learning with Depthwise Separable Convolutions
-https://arxiv.org/pdf/1610.02357.pdf
+Original License: 
+https://github.com/ondyari/FaceForensics/blob/master/LICENSE
 
-This weights ported from the Keras implementation. Achieves the following performance on the validation set:
-
-Loss:0.9173 Prec@1:78.892 Prec@5:94.292
-
-REMEMBER to set your image size to 3x299x299 for both test and validation
-
-normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                  std=[0.5, 0.5, 0.5])
-
-The resize parameter of the validation transform should be 333, and make sure to center crop at 299x299
 """
 from __future__ import print_function, division, absolute_import
 import math

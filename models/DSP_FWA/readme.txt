@@ -1,0 +1,1 @@
+Download DSP-FWA checkpoint from here: https://drive.google.com/file/d/13wbA5kHRGODBDdiJ2gPeB1XK4KiCh-Im/view

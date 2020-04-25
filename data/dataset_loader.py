@@ -58,3 +58,20 @@ class CSVDataset(data.Dataset):
     
     def __len__(self):
         return len(self.data)
+
+
+class CSVDatasetWithName(CSVDataset):
+    """
+    CSVData that also returns image names.
+    """
+
+    def __getitem__(self, i):
+        """
+        Returns:
+            tuple(tuple(PIL image, int), str): a tuple
+            containing another tuple with an image and
+            the label, and a string representing the
+            name of the image.
+        """
+        name = self.data.loc[i, self.image_field]
+        return super().__getitem__(i), name

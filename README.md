@@ -18,6 +18,11 @@ This project contains the source code of all experiments described in 'Degree Pr
     ./data/videos
 ```
 
+- Datasets folder where all image frames are placed when splitting the dataset.
+```
+    ./data/images
+```
+
 - Splits folder where information about subsets for train, validation, and test splits will be stored.
 ```
     ./data/splits
