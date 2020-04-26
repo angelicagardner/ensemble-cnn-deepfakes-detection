@@ -1,11 +1,11 @@
 #!/bin/bash
 
-declare -a networks=("capsule" "dsp-fwa" "xceptionnet")
+declare -a networks=("resnet50" "vgg16" "vgg19" "xception")
 
 IMAGES_ROOT=/Users/mnktech/Documents/projects/2dv50e/data/images/
 SPLITS_ROOT=/Users/mnktech/Documents/projects/2dv50e/data/splits/
 
-for i in $(seq 3); do
+for i in $(seq 1); do
   TRAIN_CSV=train_$i.csv
   VAL_CSV=val_$i.csv
   TEST_CSV=test_$i.csv
