@@ -46,7 +46,22 @@ Run `pip3 install -r requirements.txt`
 
 ### Requirements
 
-See file *requirements.txt* for all needed packages
+See file *requirements.txt* for necessary packages.
+
+### Configurations
+
+Change configurations from default ones in ```run.sh``` or directly through the terminal by adding the following commands:
+```shell
+python3 individual_models.py with
+data_path=<path to video frames (folder containing images)>
+splits_path=<path to CSV files with information about train, validation, and test splits>
+results_path=<path to output folder, will contain evaluation results>
+train_csv=<path to train set CSV>
+val_csv=<path to validation set CSV>
+test_csv=<path to test set CSV>
+epochs=<number of times a model will go through the complete training set>
+model_name=<CNN model>
+``` 
 
 
 ## Datasets
@@ -64,14 +79,16 @@ The dataset can be downloaded together with the regular FaceForensics++ dataset 
 The small sample training set was used during this experiment. There's a much larger full training set also available that can be used to replace this smaller sample set.
 Both the small sample training set and the full training set can be downloaded [here](https://www.kaggle.com/c/deepfake-detection-challenge/data).
 
+
 ## Individual models
 
-### (1)
-### (2)
-### (3)
+### (1) ResNet50
+### (2) VGG16
+### (3) VGG19
+### (4) Xception
 
 
-## Ensembles
+## Ensemble
 
 ...
 

@@ -26,16 +26,14 @@ ex.observers.append(fs)
 # Add default configurations
 @ex.config
 def cfg():
-    data_path = None  # path to video frames
-    splits_path = None # path to split information
-    results_path = None # path to output results
-    train_csv = None  # path to train CSV
-    val_csv = None  # path to validation CSV
-    test_csv = None  # path to test CSV
-    epochs = 30  # number of epochs
-    batch_size = 32  # batch size
-    num_workers = 8  # parallel jobs for data loading and augmentation
-    model_name = None  # model
+    data_path = None  # path to video frames (folder containing images)
+    splits_path = None # path to CSV files with information about train, validation, and test splits
+    results_path = None # path to output folder, will contain evaluation results
+    train_csv = None  # path to train set CSV
+    val_csv = None  # path to validation set CSV
+    test_csv = None  # path to test set CSV
+    epochs = 30  # number of times a model will go through the complete training set
+    model_name = None  # CNN model
 
 # Main function
 @ex.automain
