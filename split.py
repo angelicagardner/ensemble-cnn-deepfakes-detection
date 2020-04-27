@@ -1,4 +1,4 @@
-import sys, os, csv, cv2
+import sys, os, csv, cv2, dlib
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
@@ -6,6 +6,23 @@ video_folder = os.getcwd() + '/data/videos/'
 image_folder = os.getcwd() + '/data/images/'
 split_folder = os.getcwd() + '/data/splits/'
 
+# Version of getFrame() function that crops facial area
+"""
+face_detector = dlib.get_frontal_face_detector()
+
+def getFrame(vid, sec, path, filename, count):
+  vid.set(cv2.CAP_PROP_POS_MSEC, sec*1000)
+  hasFrames, image = vid.read()
+  if hasFrames:
+    faces = face_detector(image, 1)
+    print("Number of faces detected: {}".format(len(faces)))
+    for i, d in enumerate(faces):
+        cropped_face = image[d.top():d.bottom(), d.left():d.right()]
+        cv2.imwrite(image_folder + filename + "_frame"+str(count)+".jpg", cropped_face)
+    return hasFrames
+"""
+
+# Version of getFrame() function that keeps full video frame
 def getFrame(vid, sec, path, filename, count):
   vid.set(cv2.CAP_PROP_POS_MSEC, sec*1000)
   hasFrames, image = vid.read()
@@ -30,9 +47,9 @@ def createCSVFile(row):
             sec = round(sec, 2)
             success = getFrame(vidcap, sec, video_folder, video, count)
 
+
 # Splitting the data into train, validation, and test subsets with a ratio of 8:1:1
 # If video hasn't been separated into frames, this is done in the process
-
 df = pd.read_csv(video_folder + 'videos.csv')
 train, remain = train_test_split(df, test_size=0.2, random_state=1)
 test, val = train_test_split(remain, test_size=0.5, random_state=1)

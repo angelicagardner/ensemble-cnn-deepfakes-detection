@@ -28,6 +28,7 @@ ex.observers.append(fs)
 def cfg():
     data_path = None  # path to video frames
     splits_path = None # path to split information
+    results_path = None # path to output results
     train_csv = None  # path to train CSV
     val_csv = None  # path to validation CSV
     test_csv = None  # path to test CSV
@@ -38,11 +39,10 @@ def cfg():
 
 # Main function
 @ex.automain
-def main(data_path, splits_path, train_csv, val_csv, test_csv, epochs, model_name, _run):
+def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epochs, model_name, _run):
 
     path = os.getcwd()
     models_path = path + '/models/' + model_name + '.pth'
-    results_path = path + '/results/'
     if not os.path.exists(results_path + 'predictions'):
         os.mkdir(results_path + 'predictions')
         os.mkdir(results_path + 'scores')
