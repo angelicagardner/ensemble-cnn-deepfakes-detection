@@ -1,6 +1,4 @@
-import cv2
-import os, csv
-import shutil
+import cv2, csv, dlib, os, shutil
 import numpy as np
 
 ##########
@@ -17,6 +15,8 @@ dataset_deepfakedetectionchallenge = path + '/deepfake-detection-challenge'
 datasets = [dataset_celebdf, dataset_deepfakedetection, dataset_deepfakedetectionchallenge]
 
 output_folder = path + '/data/videos/'
+
+face_detector = dlib.get_frontal_face_detector()
 
 with open(output_folder + 'videos.csv', 'a') as csv_file:
   filewriter = csv.writer(csv_file, delimiter=',')

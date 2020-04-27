@@ -1,9 +1,10 @@
 import os, csv, cv2
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, confusion_matrix, roc_auc_score, average_precision_score
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, roc_auc_score, average_precision_score
 import pretrainedmodels as ptm
-import dlib
+import matplotlib.pyplot as plt
+import seaborn as sn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -152,18 +153,29 @@ def main(data_path, splits_path, train_csv, val_csv, test_csv, epochs, model_nam
         labels.append(label)
         predictions.append(prediction)
 
-    scores = pd.DataFrame(columns=['accuracy', 'auc'])
+    scores = pd.DataFrame(columns=['accuracy', 'auc', 'specificity', 'sensitivity'])
     acc = accuracy_score(labels, predictions)
+    fpr, tpr, _ = roc_curve(labels, predictions)
     auc = roc_auc_score(labels, predictions, labels=[0,1])
+    conf_matrix = confusion_matrix(labels, predictions, labels=[0,1])
+    tn, fp, fn, tp = conf_matrix.ravel()
+    specificity = tn / (tn+fp)
+    sensitivity = tp / (tp+fn)
 
-    # TODO: ap = average_precision_score(labels_array, scores_array_int)
-    #conf_matrix = confusion_matrix(labels_array, scores_array_int, labels=[0,1])
-    #tn, fp, fn, tp = conf_matrix.ravel()
-    #specificity = tn / (tn+fp)
-    #sensitivity = tp / (tp+fn)
+    plt.plot(fpr, tpr, label="Model: " + model_name.capitalize() + ", AUC="+str(round(auc, 2)))
+    plt.legend(loc=4)
+    plt.show()
+
+    df_cm = pd.DataFrame(conf_matrix, range(2), range(2))
+    sn.set(font_scale=1.4)
+    sn.heatmap(df_cm, annot=True)
+    plt.show()
+
     print("\nSaving evaluation metrics for model {}\n".format(model_name.capitalize()))
     scores = scores.append(
                     {'accuracy': int(acc * 100),
-                    'auc': auc}, 
+                    'auc': round(auc, 2),
+                    'specificity': specificity,
+                    'sensitivity': sensitivity}, 
                     ignore_index=True)
     scores.to_csv(results_path + 'scores/scores_{}.csv'.format(model_name), index=False)
