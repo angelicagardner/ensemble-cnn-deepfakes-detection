@@ -1,7 +1,7 @@
 import os, csv, cv2
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, confusion_matrix, roc_auc_score
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_auc_score, average_precision_score
 import pretrainedmodels as ptm
 import dlib
 import torch
@@ -26,7 +26,7 @@ ex.observers.append(fs)
 @ex.config
 def cfg():
     data_path = None  # path to video frames
-    splits = None # path to split information
+    splits_path = None # path to split information
     train_csv = None  # path to train CSV
     val_csv = None  # path to validation CSV
     test_csv = None  # path to test CSV
@@ -34,14 +34,17 @@ def cfg():
     batch_size = 32  # batch size
     num_workers = 8  # parallel jobs for data loading and augmentation
     model_name = None  # model
-    split_id = None  # split id (int)
 
 # Main function
 @ex.automain
-def main(data_path, splits, train_csv, val_csv, test_csv, model_name, split_id, _run):
+def main(data_path, splits_path, train_csv, val_csv, test_csv, epochs, model_name, _run):
 
     path = os.getcwd()
     models_path = path + '/models/' + model_name + '.pth'
+    results_path = path + '/results/'
+    if not os.path.exists(results_path + 'predictions'):
+        os.mkdir(results_path + 'predictions')
+        os.mkdir(results_path + 'scores')
 
     # Disable threading to run functions sequentially
     cv2.setNumThreads(0)
@@ -60,7 +63,7 @@ def main(data_path, splits, train_csv, val_csv, test_csv, model_name, split_id, 
         print("Model: VGG19")
     elif model_name == 'resnet50':
         model = ptm.resnet50(num_classes=1000, pretrained='imagenet')
-        print("Model: Resnet50")
+        print("Model: ResNet50")
     model.last_linear = nn.Linear(model.last_linear.in_features, 2)
     size = model.input_size[1]
     mean = model.mean
@@ -76,9 +79,8 @@ def main(data_path, splits, train_csv, val_csv, test_csv, model_name, split_id, 
     ])
 
     # Load dataset
-    dataset = CSVDatasetWithName(data_path, splits + train_csv, 'image_id', 'deepfake', transform=transform)
+    dataset = CSVDatasetWithName(data_path, splits_path + train_csv, 'image_id', 'deepfake', transform=transform)
     dataloader = DataLoader(dataset)
-
     # TODO: Save sample image set
 
     # Train model
@@ -86,36 +88,82 @@ def main(data_path, splits, train_csv, val_csv, test_csv, model_name, split_id, 
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, min_lr=1e-5, patience=8)
 
+    metrics = {
+        'train': pd.DataFrame(columns=['epoch', 'loss', 'acc', 'auc']),
+        'val': pd.DataFrame(columns=['epoch', 'loss', 'acc', 'auc'])
+    }
+
+    best_val_auc = 0.0
+    best_epoch = 0
+    epochs_without_improvement = 0
+
+    for epoch in range(epochs):
+        print('Training epoch {}/{} for model {}'.format(epoch + 1, epochs, model_name.capitalize()))
+
     # Save trained model
     torch.save(model, models_path)
 
     # Test model: Make predictions on test set
-    predictions = pd.DataFrame(columns=['video', 'label', 'score'])
+    predictions = pd.DataFrame(columns=['video_id', 'label', 'prediction', 'score'])
     for i, data in enumerate(tqdm(dataloader)):
-        # TODO: Add averaging all image frames from one video
         (inputs, labels), name = data
-       
+        current_video = name[0].rsplit('_frame', 1)[0]
+        if i == 0:
+            last_video = current_video
+            labels_array = []
+            scores_array = []
+        else:
+            if not current_video == last_video:
+                print("\nSaving predictions for video {}".format(last_video))
+        
+                scores_mean = 0.0
+                scores_array_int = []
+                for score in scores_array:
+                    scores_mean += score
+                    scores_array_int.append(int(round(score, 0)))
+                scores_mean = scores_mean / len(scores_array)
+
+                predictions = predictions.append(
+                    {'video_id': last_video,
+                    'label': labels.data[0].item(),
+                    'prediction': int(round(score, 0)),
+                    'score': scores_mean}, 
+                    ignore_index=True)
+
+                predictions.to_csv(results_path + 'predictions/predictions_{}.csv'.format(model_name), index=False)
+                last_video = current_video
+
+        labels_array.append(labels.data[0].item())
+
         inputs = inputs.to(device)
         labels = labels.to(device)
 
         with torch.no_grad():
             outputs = model(inputs)
             scores = F.softmax(outputs, dim=1)[:, 1].cpu().data.numpy()
-            
-        predictions = predictions.append(
-            {'video': name[0],
-            'label': labels.data[0].item(),
-            'score': scores.mean()}, 
-            ignore_index=True)
-        
-        labels_array = predictions['label'].values.astype(int)
-        scores_array = predictions['score'].values.astype(float)
-        # TODO: Add AUC metric
-        acc = accuracy_score(labels_array, np.where(scores_array >= 0.5, 1, 0))
-        conf_matrix = confusion_matrix(labels_array, scores_array >= 0.5, labels=[0,1])
-        tn, fp, fn, tp = conf_matrix.ravel()
-        specificity = tn / (tn+fp)
-        sensitivity = tp / (tp+fn)
+            scores_array.append(scores.mean())
 
-        # TODO: Save score results
-        predictions.to_csv(path + '/predictions.csv', index=False)
+    # Test model: Save evaluation metrics  
+    preds = pd.read_csv(results_path + 'predictions/predictions_{}.csv'.format(model_name))
+    predictions = []
+    labels = []
+    for i, row in enumerate(tqdm(preds.values)):
+        video_id, label, prediction, score = row
+        labels.append(label)
+        predictions.append(prediction)
+
+    scores = pd.DataFrame(columns=['accuracy', 'auc'])
+    acc = accuracy_score(labels, predictions)
+    auc = roc_auc_score(labels, predictions, labels=[0,1])
+
+    # TODO: ap = average_precision_score(labels_array, scores_array_int)
+    #conf_matrix = confusion_matrix(labels_array, scores_array_int, labels=[0,1])
+    #tn, fp, fn, tp = conf_matrix.ravel()
+    #specificity = tn / (tn+fp)
+    #sensitivity = tp / (tp+fn)
+    print("\nSaving evaluation metrics for model {}\n".format(model_name.capitalize()))
+    scores = scores.append(
+                    {'accuracy': int(acc * 100),
+                    'auc': auc}, 
+                    ignore_index=True)
+    scores.to_csv(results_path + 'scores/scores_{}.csv'.format(model_name), index=False)
