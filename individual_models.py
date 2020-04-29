@@ -32,12 +32,31 @@ def cfg():
     train_csv = None  # path to train set CSV
     val_csv = None  # path to validation set CSV
     test_csv = None  # path to test set CSV
-    epochs = 30  # number of times a model will go through the complete training set
+    epochs = 100  # number of times a model will go through the complete training set
+    early_stopping = 10 # training is stopped early if the validation loss has not decrease further after this number of epochs
     model_name = None  # CNN model
+
+# Classes and functions
+class Average(object):
+    # Computes and stores the average and current value
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
 # Main function
 @ex.automain
-def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epochs, model_name, _run):
+def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epochs, early_stopping, model_name, _run):
 
     path = os.getcwd()
     models_path = path + '/models/' + model_name + '.pth'
@@ -67,7 +86,6 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
     size = model.input_size[1]
     mean = model.mean
     std = model.std
-    model.eval()
     model.to(device)    
 
     # Image transformations
@@ -77,9 +95,13 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
         transforms.Normalize(mean, std)
     ])
 
-    # Load dataset
-    dataset = CSVDatasetWithName(data_path, splits_path + train_csv, 'image_id', 'deepfake', transform=transform)
-    dataloader = DataLoader(dataset)
+    # Load datasets
+    dataset_train = CSVDataset(data_path, splits_path + train_csv, 'image_id', 'deepfake', transform=transform)
+    dataset_val = CSVDatasetWithName(data_path, splits_path + val_csv, 'image_id', 'deepfake', transform=transform)
+    dataset_test = CSVDatasetWithName(data_path, splits_path + test_csv, 'image_id', 'deepfake', transform=transform)
+    dataloader_train = DataLoader(dataset_train)
+    dataloader_val = DataLoader(dataset_val)
+    dataloader_test = DataLoader(dataset_test)
     # TODO: Save sample image set
 
     # Train model
@@ -98,13 +120,40 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
 
     for epoch in range(epochs):
         print('Training epoch {}/{} for model {}'.format(epoch + 1, epochs, model_name.capitalize()))
+        losses = Average()
+        accuracies = Average()
+        preds = []
+        labels = []
+        model.train()
+        for data in tqdm(dataloader_train):
+            inputs, labels = data
+
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            optimizer.zero_grad()
+
+            with torch.set_grad_enabled(True):
+                outputs = model(inputs)
+                _, preds = torch.max(outputs.data, 1)
+                loss = criterion(outputs, labels)
+
+                loss.backward()
+                optimizer.step()
+
+            losses.update(loss.item(), inputs.size(0))
+            acc = torch.sum(preds == labels.data).item() / preds.shape[0]
+            accuracies.update(acc)
 
     # Save trained model
     torch.save(model, models_path)
 
+    # Change model mode from training to evaluation
+    model.eval()
+
     # Test model: Make predictions on test set
     predictions = pd.DataFrame(columns=['video_id', 'label', 'prediction', 'score'])
-    for i, data in enumerate(tqdm(dataloader)):
+    for i, data in enumerate(tqdm(dataloader_test)):
         (inputs, labels), name = data
         current_video = name[0].rsplit('_frame', 1)[0]
         if i == 0:

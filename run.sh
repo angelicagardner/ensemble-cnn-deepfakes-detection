@@ -16,7 +16,7 @@ for network in "${networks[@]}"; do
   python3 individual_models.py with \
   data_path=$IMAGES_ROOT splits_path=$SPLITS_ROOT results_path=$RESULTS_ROOT \
   train_csv=$TRAIN_CSV val_csv=$VAL_CSV test_csv=$TEST_CSV \
-  epochs=500 model_name="$network" 
+  epochs=1 model_name="$network" 
 done
 
 python3 ensemble.py

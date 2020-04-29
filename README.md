@@ -60,6 +60,7 @@ train_csv=<path to train set CSV>
 val_csv=<path to validation set CSV>
 test_csv=<path to test set CSV>
 epochs=<number of times a model will go through the complete training set>
+early_stopping=<training is stopped early if the validation loss has not decrease further after this number of epochs>
 model_name=<CNN model>
 ``` 
 
