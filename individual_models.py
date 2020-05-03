@@ -16,7 +16,7 @@ from tqdm import tqdm
 from sacred import Experiment
 from sacred.observers import FileStorageObserver
 
-from data.dataset_loader import CSVDataset, CSVDatasetWithName
+from data.dataset_loader import CSVDataset
 
 # Set up experiment
 ex = Experiment()
@@ -57,7 +57,7 @@ class Average(object):
 # Main function
 @ex.automain
 def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epochs, early_stopping, model_name, _run):
-
+    
     path = os.getcwd()
     models_path = path + '/models/' + model_name + '.pth'
     if not os.path.exists(results_path + 'predictions'):
@@ -86,7 +86,8 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
     size = model.input_size[1]
     mean = model.mean
     std = model.std
-    model.to(device)    
+    model.to(device)
+    model.train()    
 
     # Image transformations
     transform = transforms.Compose([
@@ -97,8 +98,8 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
 
     # Load datasets
     dataset_train = CSVDataset(data_path, splits_path + train_csv, 'image_id', 'deepfake', transform=transform)
-    dataset_val = CSVDatasetWithName(data_path, splits_path + val_csv, 'image_id', 'deepfake', transform=transform)
-    dataset_test = CSVDatasetWithName(data_path, splits_path + test_csv, 'image_id', 'deepfake', transform=transform)
+    dataset_val = CSVDataset(data_path, splits_path + val_csv, 'image_id', 'deepfake', transform=transform)
+    dataset_test = CSVDataset(data_path, splits_path + test_csv, 'image_id', 'deepfake', transform=transform)
     dataloader_train = DataLoader(dataset_train)
     dataloader_val = DataLoader(dataset_val)
     dataloader_test = DataLoader(dataset_test)
@@ -119,19 +120,28 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
     epochs_without_improvement = 0
 
     for epoch in range(epochs):
-        print('Training epoch {}/{} for model {}'.format(epoch + 1, epochs, model_name.capitalize()))
+        print('Training epoch {}/{} for model {}\n'.format(epoch + 1, epochs, model_name.capitalize()))
         losses = Average()
         accuracies = Average()
-        preds = []
-        labels = []
-        model.train()
-        for data in tqdm(dataloader_train):
-            inputs, labels = data
+        all_preds = []
+        all_labels = []
+        tqdm_loader = tqdm(dataloader_train)
+
+        for i, data in enumerate(tqdm_loader):
+            (inputs, labels), name = data
+            current_video = name[0].rsplit('_frame', 1)[0]
+            if i == 0:
+                last_video = current_video
+                print("\n\nTraining on video {}".format(last_video))
+            else:
+                if not current_video == last_video:
+                    print("\n\nTraining on video {}".format(last_video))
+                    last_video = current_video
 
             inputs = inputs.to(device)
             labels = labels.to(device)
 
-            optimizer.zero_grad()
+            optimizer.zero_grad() # Set the gradients to zero before starting to do backpropagation
 
             with torch.set_grad_enabled(True):
                 outputs = model(inputs)
@@ -144,6 +154,15 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
             losses.update(loss.item(), inputs.size(0))
             acc = torch.sum(preds == labels.data).item() / preds.shape[0]
             accuracies.update(acc)
+            all_preds += list(F.softmax(outputs, dim=1)[:,1].cpu().data.numpy())
+            all_labels += list(labels.cpu().data.numpy())
+            tqdm_loader.set_postfix(loss=losses.avg, acc=accuracies.avg)
+
+        auc = roc_auc_score(all_labels, all_preds)
+
+        print("auc: " + str(auc))
+        print("loss: " + str(losses.avg))
+        print("acc: " + str(accuracies.avg))
 
     # Save trained model
     torch.save(model, models_path)
@@ -153,7 +172,7 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
 
     # Test model: Make predictions on test set
     predictions = pd.DataFrame(columns=['video_id', 'label', 'prediction', 'score'])
-    for i, data in enumerate(tqdm(dataloader_test)):
+    for i, data in enumerate(tqdm(dataloader_train)):
         (inputs, labels), name = data
         current_video = name[0].rsplit('_frame', 1)[0]
         if i == 0:
@@ -162,7 +181,7 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
             scores_array = []
         else:
             if not current_video == last_video:
-                print("\nSaving predictions for video {}".format(last_video))
+                print("\n\nSaving predictions for video {}".format(last_video))
         
                 scores_mean = 0.0
                 scores_array_int = []

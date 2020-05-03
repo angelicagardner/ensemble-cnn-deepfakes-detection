@@ -2,9 +2,9 @@
 
 declare -a networks=("resnet50" "vgg16" "vgg19" "xception")
 
-IMAGES_ROOT=/Users/mnktech/Documents/projects/2dv50e/data/images/
-SPLITS_ROOT=/Users/mnktech/Documents/projects/2dv50e/data/splits/
-RESULTS_ROOT=/Users/mnktech/Documents/projects/2dv50e/results/
+IMAGES_ROOT=$PWD/data/images/
+SPLITS_ROOT=$PWD/data/splits/
+RESULTS_ROOT=$PWD/results/
 
 TRAIN_CSV=train.csv
 VAL_CSV=val.csv
