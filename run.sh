@@ -1,6 +1,6 @@
 #!/bin/bash
 
-declare -a networks=("resnet50" "vgg16" "vgg19" "xception")
+declare -a networks=("dsp-fwa" "vgg16" "vgg19" "xceptionnet")
 
 IMAGES_ROOT=$PWD/data/images/
 SPLITS_ROOT=$PWD/data/splits/

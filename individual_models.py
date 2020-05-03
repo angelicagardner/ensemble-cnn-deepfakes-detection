@@ -54,6 +54,101 @@ class Average(object):
         self.count += n
         self.avg = self.sum / self.count
 
+# Function used for training set
+def train(model, dataloader, device, criterion, optimizer):
+    losses = Average()
+    accuracies = Average()
+    all_preds = []
+    all_labels = []
+    tqdm_loader = tqdm(dataloader)
+    model.train()
+
+    for i, data in enumerate(tqdm_loader):
+            (inputs, labels), name = data
+            current_video = name[0].rsplit('_frame', 1)[0]
+            if i == 0:
+                last_video = current_video
+                print("\n\nTraining on video {}".format(last_video))
+            else:
+                if not current_video == last_video:
+                    print("\n\nTraining on video {}".format(last_video))
+                    last_video = current_video
+
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            optimizer.zero_grad()
+
+            with torch.set_grad_enabled(True):
+                outputs = model(inputs)
+                _, preds = torch.max(outputs.data, 1)
+                loss = criterion(outputs, labels)
+
+                loss.backward()
+                optimizer.step()
+
+            losses.update(loss.item(), inputs.size(0))
+            acc = torch.sum(preds == labels.data).item() / preds.shape[0]
+            accuracies.update(acc)
+            all_preds += list(F.softmax(outputs, dim=1)[:,1].cpu().data.numpy())
+            all_labels += list(labels.cpu().data.numpy())
+            tqdm_loader.set_postfix(loss=losses.avg, acc=accuracies.avg)
+
+    return {'labels': all_labels, 'preds': all_preds, 'losses': losses, 'acc': accuracies}
+
+# Function used for validation or test sets
+def test(model, dataloader, device, results_path=None, model_name=None):
+    model.eval()
+    criterion = nn.CrossEntropyLoss()
+
+    losses = Average()
+    predictions = pd.DataFrame(columns=['video_id', 'label', 'prediction', 'score', 'loss'])
+
+    for i, data in enumerate(tqdm(dataloader)):
+        (inputs, labels), name = data
+        current_video = name[0].rsplit('_frame', 1)[0]
+        if i == 0:
+            last_video = current_video
+            labels_array = []
+            scores_array = []
+        else:
+            if not current_video == last_video:
+                print("\n\nSaving predictions for video {}".format(last_video))
+
+                scores_mean = 0.0
+                scores_array_int = []
+                for score in scores_array:
+                    scores_mean += score
+                    scores_array_int.append(int(round(score, 0)))
+                scores_mean = scores_mean / len(scores_array)
+
+                predictions = predictions.append(
+                    {'video_id': last_video,
+                    'label': labels.data[0].item(),
+                    'prediction': int(round(score, 0)),
+                    'score': scores_mean,
+                    'loss': losses.avg}, 
+                    ignore_index=True)
+
+                if not model_name == None:
+                    predictions.to_csv(results_path + 'predictions/predictions_test_{}.csv'.format(model_name), index=False)
+                else:
+                    predictions.to_csv(results_path + 'predictions/predictions_val_{}.csv'.format(model_name), index=False)
+                last_video = current_video
+
+        labels_array.append(labels.data[0].item())
+        
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+
+        with torch.no_grad():
+            outputs = model(inputs)
+            scores = F.softmax(outputs, dim=1)[:, 1].cpu().data.numpy()
+            scores_array.append(scores.mean())
+            loss = criterion(outputs, labels)
+
+        losses.update(loss.item(), inputs.size(0))
+
 # Main function
 @ex.automain
 def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epochs, early_stopping, model_name, _run):
@@ -70,24 +165,23 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load model
-    if model_name == 'xception':
+    if model_name == 'xceptionnet':
         model = ptm.xception(num_classes=1000, pretrained='imagenet')
-        print("Model: Xception")
+        print("Model: XceptionNet")
     elif model_name == 'vgg16':
         model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
         print("Model: VGG16")
     elif model_name == 'vgg19':
         model = ptm.vgg19(num_classes=1000, pretrained='imagenet')
         print("Model: VGG19")
-    elif model_name == 'resnet50':
+    elif model_name == 'dsp-fwa':
         model = ptm.resnet50(num_classes=1000, pretrained='imagenet')
-        print("Model: ResNet50")
+        print("Model: DSP-FWA")
     model.last_linear = nn.Linear(model.last_linear.in_features, 2)
     size = model.input_size[1]
     mean = model.mean
     std = model.std
-    model.to(device)
-    model.train()    
+    model.to(device)    
 
     # Image transformations
     transform = transforms.Compose([
@@ -105,11 +199,12 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
     dataloader_test = DataLoader(dataset_test)
     # TODO: Save sample image set
 
-    # Train model
+    # Training settings
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, min_lr=1e-5, patience=8)
 
+    # Train model
     metrics = {
         'train': pd.DataFrame(columns=['epoch', 'loss', 'acc', 'auc']),
         'val': pd.DataFrame(columns=['epoch', 'loss', 'acc', 'auc'])
@@ -120,102 +215,57 @@ def main(data_path, splits_path, results_path, train_csv, val_csv, test_csv, epo
     epochs_without_improvement = 0
 
     for epoch in range(epochs):
-        print('Training epoch {}/{} for model {}\n'.format(epoch + 1, epochs, model_name.capitalize()))
+        print('Training epoch {}/{} for model {}\n'.format(epoch + 1, epochs, model_name.upper()))
+        epoch_train_results = train(model, dataloader_train, device, criterion, optimizer)
+
+        auc = roc_auc_score(epoch_train_results['labels'], epoch_train_results['preds'])
+
+        metrics['train'] = metrics['train'].append(
+            {'epoch': epoch,
+            'loss': epoch_train_results['losses'].avg,
+            'acc':epoch_train_results['accuracies'].avg,
+            'auc': auc}, 
+            ignore_index=True)
+        print("Training loss: " + str(epoch_train_results['losses'].avg) + "\nTraining AUC: " + str(auc) + "\nTraining accuracy: " + str(epoch_train_results['accuracies'].avg))
+
+        # Testing model on validation set
+        test(model, dataloader_train, device)
+
+        preds = pd.read_csv(results_path + 'predictions/predictions_val_{}.csv'.format(model_name))
+        predictions = []
+        labels = []
         losses = Average()
-        accuracies = Average()
-        all_preds = []
-        all_labels = []
-        tqdm_loader = tqdm(dataloader_train)
+        for i, row in enumerate(tqdm(preds.values)):
+            video_id, label, prediction, score, loss = row
+            labels.append(label)
+            predictions.append(prediction)
+            losses.append(loss)
 
-        for i, data in enumerate(tqdm_loader):
-            (inputs, labels), name = data
-            current_video = name[0].rsplit('_frame', 1)[0]
-            if i == 0:
-                last_video = current_video
-                print("\n\nTraining on video {}".format(last_video))
-            else:
-                if not current_video == last_video:
-                    print("\n\nTraining on video {}".format(last_video))
-                    last_video = current_video
+        acc = accuracy_score(labels, predictions)
+        auc = roc_auc_score(labels, predictions, labels=[0,1])
 
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+        metrics['val'] = metrics['val'].append(
+            {'epoch': epoch,
+            'acc': acc,
+            'auc': auc}, 
+            ignore_index=True)
+        print("Validation loss: " + str(losses.avg) + "\Validation AUC: " + str(auc) + "\Validation accuracy: " + str(acc))
+        print('-' * 40)
 
-            optimizer.zero_grad() # Set the gradients to zero before starting to do backpropagation
-
-            with torch.set_grad_enabled(True):
-                outputs = model(inputs)
-                _, preds = torch.max(outputs.data, 1)
-                loss = criterion(outputs, labels)
-
-                loss.backward()
-                optimizer.step()
-
-            losses.update(loss.item(), inputs.size(0))
-            acc = torch.sum(preds == labels.data).item() / preds.shape[0]
-            accuracies.update(acc)
-            all_preds += list(F.softmax(outputs, dim=1)[:,1].cpu().data.numpy())
-            all_labels += list(labels.cpu().data.numpy())
-            tqdm_loader.set_postfix(loss=losses.avg, acc=accuracies.avg)
-
-        auc = roc_auc_score(all_labels, all_preds)
-
-        print("auc: " + str(auc))
-        print("loss: " + str(losses.avg))
-        print("acc: " + str(accuracies.avg))
+        scheduler.step(loss)
 
     # Save trained model
     torch.save(model, models_path)
 
-    # Change model mode from training to evaluation
-    model.eval()
-
     # Test model: Make predictions on test set
-    predictions = pd.DataFrame(columns=['video_id', 'label', 'prediction', 'score'])
-    for i, data in enumerate(tqdm(dataloader_train)):
-        (inputs, labels), name = data
-        current_video = name[0].rsplit('_frame', 1)[0]
-        if i == 0:
-            last_video = current_video
-            labels_array = []
-            scores_array = []
-        else:
-            if not current_video == last_video:
-                print("\n\nSaving predictions for video {}".format(last_video))
-        
-                scores_mean = 0.0
-                scores_array_int = []
-                for score in scores_array:
-                    scores_mean += score
-                    scores_array_int.append(int(round(score, 0)))
-                scores_mean = scores_mean / len(scores_array)
-
-                predictions = predictions.append(
-                    {'video_id': last_video,
-                    'label': labels.data[0].item(),
-                    'prediction': int(round(score, 0)),
-                    'score': scores_mean}, 
-                    ignore_index=True)
-
-                predictions.to_csv(results_path + 'predictions/predictions_{}.csv'.format(model_name), index=False)
-                last_video = current_video
-
-        labels_array.append(labels.data[0].item())
-
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-
-        with torch.no_grad():
-            outputs = model(inputs)
-            scores = F.softmax(outputs, dim=1)[:, 1].cpu().data.numpy()
-            scores_array.append(scores.mean())
+    test(model, dataloader_train, device, results_path, model_name)
 
     # Test model: Save evaluation metrics  
-    preds = pd.read_csv(results_path + 'predictions/predictions_{}.csv'.format(model_name))
+    preds = pd.read_csv(results_path + 'predictions/predictions_test_{}.csv'.format(model_name))
     predictions = []
     labels = []
     for i, row in enumerate(tqdm(preds.values)):
-        video_id, label, prediction, score = row
+        video_id, label, prediction, score, loss = row
         labels.append(label)
         predictions.append(prediction)
 
