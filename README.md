@@ -56,10 +56,12 @@ python3 individual_models.py with
 data_path=<path to video frames (folder containing images)>
 splits_path=<path to CSV files with information about train, validation, and test splits>
 results_path=<path to output folder, will contain evaluation results>
+models_path=<path to saved models>
 train_csv=<path to train set CSV>
 val_csv=<path to validation set CSV>
 test_csv=<path to test set CSV>
 epochs=<number of times a model will go through the complete training set>
+batch_size=<the amount of data examples included in each epoch>
 early_stopping=<training is stopped early if the validation loss has not decrease further after this number of epochs>
 model_name=<CNN model>
 ``` 
