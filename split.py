@@ -7,7 +7,6 @@ image_folder = os.getcwd() + '/data/images/'
 split_folder = os.getcwd() + '/data/splits/'
 
 # Version of getFrame() function that crops facial area
-"""
 face_detector = dlib.get_frontal_face_detector()
 
 def getFrame(vid, sec, path, filename, count):
@@ -20,15 +19,16 @@ def getFrame(vid, sec, path, filename, count):
         cropped_face = image[d.top():d.bottom(), d.left():d.right()]
         cv2.imwrite(image_folder + filename + "_frame"+str(count)+".jpg", cropped_face)
     return hasFrames
-"""
 
 # Version of getFrame() function that keeps full video frame
+"""
 def getFrame(vid, sec, path, filename, count):
   vid.set(cv2.CAP_PROP_POS_MSEC, sec*1000)
   hasFrames, image = vid.read()
   if hasFrames:
     cv2.imwrite(image_folder + filename + "_frame"+str(count)+".jpg", image)
     return hasFrames
+"""
 
 def createCSVFile(row):
     video = row[0]

@@ -162,7 +162,7 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
     EXP_ID = _run._id
 
     # Create folder for saving scoring metrics
-    if not os.path.exists(results_path + 'predictions'):
+    if not os.path.exists(results_path + 'scores'):
         os.makedirs(SCORES_DIR)
 
     # Disable threading to run functions sequentially
@@ -183,7 +183,7 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
     elif model_name == 'ictu_oculi':
         model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
         print("Model: Ictu Oculi")
-        optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=0.001)
+        optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.001)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.9, min_lr=1e-5)
     elif model_name == 'mantranet':
         model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
@@ -191,9 +191,9 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
         optimizer = optim.Adam(model.parameters(), lr=1e-4, betas=[0.5,0.5])
     elif model_name == 'xceptionnet':
         model = ptm.xception(num_classes=1000, pretrained='imagenet')
+        model.last_linear = nn.Linear(model.last_linear.in_features, 2)
         print("Model: XceptionNet")
         optimizer = optim.Adam(model.parameters(), lr=0.00001, betas=[0.5,0.999])
-    model.last_linear = nn.Linear(model.last_linear.in_features, 2)
     size = model.input_size[1]
     mean = model.mean
     std = model.std
@@ -216,8 +216,6 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
 
     # Training settings
     criterion = nn.CrossEntropyLoss()
-    #optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=0.001)
-    #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=decay, min_lr=1e-5, patience=8)
 
     # Train model
     best_val_auc = 0.0
@@ -231,9 +229,9 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
         auc = roc_auc_score(epoch_train_results['labels'], epoch_train_results['preds'])
 
         print("\nTraining loss: " + str(epoch_train_results['losses'].avg) + "\nTraining AUC: " + str(auc) + "\nTraining accuracy: " + str(int(epoch_train_results['acc'].avg * 100)) + '%\n')
-
+        
         # Test model on validation set
-        epoch_val_results = test(model, dataloader_train, device)
+        epoch_val_results = test(model, dataloader_val, device)
 
         predictions = []
         labels = []
@@ -268,7 +266,7 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
             break
 
     # Test model by making predictions on test set
-    test_results = test(model, dataloader_train, device)
+    test_results = test(model, dataloader_test, device)
 
     predictions = []
     labels = []
@@ -310,4 +308,4 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
                     'test_spec': specificity,
                     'test_sens': sensitivity}, 
                     ignore_index=True)
-    scores.to_csv(SCORES_DIR, index=False)
+    scores.to_csv(os.path.join(SCORES_DIR, 'scores.csv'), index=False)

@@ -2,6 +2,8 @@
 
 This project contains the source code of all experiments described in 'Degree Project at Bachelor Level - VT2020 - Linnaeus University.'
 
+This repository is currently under mantainance, feel free to open an issue if you encounter problems or something that needs fixing.
+
 
 ## Abstract
 
@@ -85,15 +87,20 @@ Both the small sample training set and the full training set can be downloaded [
 
 ## Individual models
 
-### (1) ResNet50
-### (2) VGG16
-### (3) VGG19
-### (4) Xception
+### (1) Capsule
+### (2) DSP-FWA
+### (3) Ictu Oculi
+### (4) ManTra-Net
+### (5) XceptionNet
 
 
 ## Ensemble
 
 ...
+
+
+## References
+- Xception PyTorch
 
 
 ## Citation
@@ -108,11 +115,3 @@ or reference (IEEE):
 ```
 ...
 ```
-
-## Notice
-
-This software and associated documentation files (the "Software") is provided "AS IS", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or contributors be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise,arising from, out of or in connection with the software or the use or other dealings in the software.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of the Software, to deal with it, including to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software subject to the following conditions:
-
-Files and software from other projects are subjected to their individual licenses and not included in this permission. Such files are located in subdirectories to the ```./models``` folder. A link to the license can be located in the header of the files affected by this condition.
