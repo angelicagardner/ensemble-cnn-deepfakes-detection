@@ -1,6 +1,6 @@
 #!/bin/bash
 
-declare -a networks=("capsule" "dsp-fwa" "ictu_oculi" "mantranet" "xceptionnet")
+declare -a networks=( "capsule" "dsp-fwa" "ictu_oculi" "mantranet" "xceptionnet" )
 declare -a epochs=( ["capsule"]=25 ["dsp-fwa"]=20 ["ictu_oculi"]=100 \
                   ["mantranet"]=500 ["xceptionnet"]=18 )
 declare -a bsize=( ["capsule"]=64 ["dsp-fwa"]=56 ["ictu_oculi"]=40 \

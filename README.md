@@ -35,11 +35,6 @@ This repository is currently under mantainance, feel free to open an issue if yo
     ./models/<model_name>
 ```
 
-- Ensemble folder where you find the ensemble models.
-```
-    ./ensembles
-```
-
 
 ## Setup
 

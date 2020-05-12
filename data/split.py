@@ -45,8 +45,7 @@ def createCSVFile(row):
             count = count + 1
             sec = sec + frameRate
             sec = round(sec, 2)
-            success = getFrame(vidcap, sec, video_folder, video, count)
-
+            success = getFrame(vidcap, sec, video_folder, video, count)   
 
 # Splitting the data into train, validation, and test subsets with a ratio of 8:1:1
 # If video hasn't been separated into frames, this is done in the process

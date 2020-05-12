@@ -20,7 +20,7 @@ from data.dataset_loader import CSVDataset
 
 # Set up experiment
 ex = Experiment()
-fs = FileStorageObserver.create('results') # Create the results output folder
+fs = FileStorageObserver.create('results/experiments') # Create the results output folder
 ex.observers.append(fs)
 
 # Add default configurations
@@ -183,7 +183,7 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
     elif model_name == 'ictu_oculi':
         model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
         print("Model: Ictu Oculi")
-        optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.001)
+        optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9, weight_decay=0.001)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.9, min_lr=1e-5)
     elif model_name == 'mantranet':
         model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
@@ -257,6 +257,7 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
             best_epoch = epoch
             epochs_without_improvement = 0
             torch.save(model, BEST_MODEL_PATH)
+            #torch.save(model.state_dict(), os.path.join(os.getcwd() + '/models/', 'mantra-net' + '.pth'))
         else:
             epochs_without_improvement += 1
 
@@ -308,4 +309,4 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
                     'test_spec': specificity,
                     'test_sens': sensitivity}, 
                     ignore_index=True)
-    scores.to_csv(os.path.join(SCORES_DIR, 'scores.csv'), index=False)
+    scores.to_csv(os.path.join(SCORES_DIR, 'scores.csv'), index=False, mode='a')

@@ -14,7 +14,7 @@ dataset_deepfakedetectionchallenge = path + '/deepfake-detection-challenge'
 
 datasets = [dataset_celebdf, dataset_deepfakedetection, dataset_deepfakedetectionchallenge]
 
-output_folder = path + '/data/videos/'
+output_folder = path + '../videos/'
 
 with open(output_folder + 'videos.csv', 'a') as csv_file:
   filewriter = csv.writer(csv_file, delimiter=',')
