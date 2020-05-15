@@ -52,8 +52,6 @@ def test(model, images_path, csv_path, csv_dataset, device="cpu"):
     all_labels = predictions['label'].values.astype(int)
     all_scores = np.rint(predictions['score'].values).astype(int)
 
-    print(all_scores)
-
     # Calculate evaluation metrics
     auc = roc_auc_score(all_labels, all_scores, labels=[0,1])
     acc = accuracy_score(all_labels, all_scores)
@@ -97,7 +95,7 @@ def main():
 
     # Save evaluation metrics
     print(test_results[0])
-    test_results[1].to_csv(os.path.join(os.getcwd() + args.output_path, 'scores_' + args.model_name + str(datetime.datetime.now().timestamp()) + '.csv'), index=False)
+    test_results[1].to_csv(os.path.join(os.getcwd() + args.output_path, 'scores_' + args.model_name + '_' + str(datetime.datetime.now().timestamp()) + '.csv'), index=False)
 
 if __name__ == '__main__':
     main()
