@@ -81,9 +81,9 @@ def main():
         model =ptm.vgg19(num_classes=1000, pretrained='imagenet')
     elif args.model_name == 'dsp-fwa':
         model = ptm.resnet50(num_classes=1000, pretrained='imagenet')
-    elif args.model_name == 'ictu-oculi':
+    elif args.model_name == 'ictu_oculi':
         model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
-    elif args.model_name == 'mantra-net':
+    elif args.model_name == 'mantranet':
         model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
     elif args.model_name == 'xceptionnet':
         model = ptm.xception(num_classes=1000, pretrained='imagenet')

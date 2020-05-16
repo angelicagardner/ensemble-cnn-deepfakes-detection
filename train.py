@@ -33,7 +33,6 @@ def cfg():
     models_path = None # path to the saved models
     train_csv = None  # path to train set CSV
     val_csv = None  # path to validation set CSV
-    test_csv = None  # path to test set CSV
     epochs = 100  # number of times a model will go through the complete training set
     batch_size = 32 # the amount of data examples included in each epoch
     early_stopping = 10 # training is stopped early if the validation loss has not decrease further after this number of epochs
@@ -91,7 +90,7 @@ def train(model, dataloader, device, criterion, optimizer=None, batches_per_epoc
         predictions = predictions.append(
                 {'frame_id': name[0],
                 'label': labels.data[0].item(),
-                'score': score}, 
+                'score': score.mean()}, 
                 ignore_index=True)
 
     all_labels = np.rint(all_labels).astype(int)
@@ -107,7 +106,7 @@ def train(model, dataloader, device, criterion, optimizer=None, batches_per_epoc
 
 # Main function
 @ex.automain
-def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, test_csv, epochs, batch_size, early_stopping, model_name, split_id, _run):
+def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, epochs, batch_size, early_stopping, model_name, split_id, _run):
 
     # Constants
     SCORES_DIR = os.path.join(results_path, 'scores')
@@ -160,8 +159,8 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
     ])
 
     # Load datasets
-    dataset_train = CSVDataset(data_path, splits_path + test_csv, 'frame_id', 'deepfake', transform=transform)
-    dataset_val = CSVDataset(data_path, splits_path + test_csv, 'frame_id', 'deepfake', transform=transform)
+    dataset_train = CSVDataset(data_path, splits_path + train_csv, 'frame_id', 'deepfake', transform=transform)
+    dataset_val = CSVDataset(data_path, splits_path + val_csv, 'frame_id', 'deepfake', transform=transform)
     dataloader_train = DataLoader(dataset_train)
     dataloader_val = DataLoader(dataset_val)
 
@@ -221,4 +220,4 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
                     'val_acc': best_val_result['acc'],
                     'val_auc': best_val_result['auc']},
                     ignore_index=True)
-    scores.to_csv(os.path.join(SCORES_DIR, 'scores.csv'), index=False, mode='a')
+    scores.to_csv(os.path.join(SCORES_DIR, 'scores.csv'), index=False, mode='a', header=False)

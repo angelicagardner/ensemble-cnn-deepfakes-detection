@@ -1,4 +1,5 @@
-import os
+import argparse, os, csv
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, roc_auc_score, average_precision_score
 import pretrainedmodels as ptm
 import torch
 import torch.nn as nn
@@ -11,170 +12,82 @@ from torchvision import transforms
 from tqdm import tqdm
 
 from data.dataset_loader import CSVDataset
+from test import test
 
-# Load Capsule base-learner
-capsule = ptm.vgg19(num_classes=1000, pretrained='imagenet')
-capsule.load_state_dict(torch.load(os.getcwd() + '/models/capsule.pth'))
-capsule_size = capsule.input_size[1]
-mean = capsule.mean
-std = capsule.std
-capsule.eval()
+import numpy as np
 
-transform = transforms.Compose([
-    transforms.Resize((capsule_size, capsule_size)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean, std)
-])
+def main():
 
-data = CSVDataset(os.getcwd() + '/data/images/', os.getcwd() + '/data/splits/test.csv', 'image_id', 'deepfake', transform=transform)
-dataloader = DataLoader(data)
+    # Command-line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--models_path', type=str, help='Path to trained models', required=True)
+    parser.add_argument('--models_results_path', type=str, help='Path to finding the training and validation results for single models', required=True)
+    parser.add_argument('--output_path', type=str, help='Path to output folder', required=True)
+    parser.add_argument('--images_path', type=str, help='Path to folder where images/video frames are stored', required=True)
+    parser.add_argument('--csv_path', type=str, help='Path to folder which contains test split csv file', required=True)
+    parser.add_argument('--csv_file', type=str, help="Path to test split csv file", required=True)
 
-all_labels = []
-all_predictions = []
-for i, data_example in enumerate(tqdm(dataloader)):
-    (inputs, labels), name = data_example
-    current_video = name[0].rsplit('_frame', 1)[0]
-    label = labels.data[0].item()
-    all_labels.append(label)
-    output = capsule(inputs)
-    score = F.softmax(output, dim=1)[:, 1].cpu().data.numpy()
-    pred = int(round(float(score)))
-    all_predictions.append(pred)
-    print(label == pred)
+    args = parser.parse_args()
 
-capsule_member = Member(name="Capsule", train_probs=all_predictions, train_classes=all_labels, val_probs=all_predictions, val_classes=all_labels, submission_probs=all_predictions)
+    members = []
 
-# Load DSP-FWA base-learner
-dsp_fwa = ptm.resnet50(num_classes=1000, pretrained='imagenet')
-dsp_fwa.load_state_dict(torch.load(os.getcwd() + '/models/dsp-fwa.pth'))
-dsp_fwa_size = dsp_fwa.input_size[1]
-mean = dsp_fwa.mean
-std = dsp_fwa.std
-dsp_fwa.eval()
+    # Load base-learners
+    for model in os.listdir(os.getcwd() + args.models_path):
+        if model.endswith('.pth'):
+            model_name = model.rsplit('.pth', 1)[0]
+            if model_name == 'capsule':
+                model =ptm.vgg19(num_classes=1000, pretrained='imagenet')
+            elif model_name == 'dsp-fwa':
+                model = ptm.resnet50(num_classes=1000, pretrained='imagenet')
+            elif model_name == 'ictu_oculi':
+                model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
+            elif model_name == 'mantranet':
+                model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
+            elif model_name == 'xceptionnet':
+                model = ptm.xception(num_classes=1000, pretrained='imagenet')
+                model.last_linear = nn.Linear(model.last_linear.in_features, 2)
+            model.load_state_dict(torch.load(os.getcwd() + args.models_path + '/' + model_name + '.pth'))
 
-transform = transforms.Compose([
-    transforms.Resize((dsp_fwa_size, dsp_fwa_size)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean, std)
-])
+            # Load training and validation results
+            train_labels = []
+            train_predictions = []
+            val_labels = []
+            val_predictions = []
+            for file in os.listdir(os.getcwd() + args.models_results_path):
+                if file.endswith('.csv'):
+                    with open(os.path.join(os.getcwd() + args.models_results_path, file)) as csv_file:
+                        csv_reader = csv.reader(csv_file, delimiter=',')
+                        for row in csv_reader: 
+                            if file.startswith('train'):
+                                train_labels.append(row[1])
+                                train_predictions.append(row[2])
+                            elif file.startswith('val'):
+                                val_labels.append(row[1])
+                                val_predictions.append(row[2])
 
-data = CSVDataset(os.getcwd() + '/data/images/', os.getcwd() + '/data/splits/test.csv', 'image_id', 'deepfake', transform=transform)
-dataloader = DataLoader(data)
+            # Get predictions on test data
+            test_predictions = test(model, os.getcwd() + args.images_path, os.getcwd() + args.csv_path, args.csv_file)
 
-all_labels = []
-all_predictions = []
-for i, data_example in enumerate(tqdm(dataloader)):
-    (inputs, labels), name = data_example
-    current_video = name[0].rsplit('_frame', 1)[0]
-    label = labels.data[0].item()
-    all_labels.append(label)
-    output = dsp_fwa(inputs)
-    score = F.softmax(output, dim=1)[:, 1].cpu().data.numpy()
-    pred = int(round(float(score)))
-    all_predictions.append(pred)
-    print(label == pred)
+            # Create an ensemble member from the model
+            member = Member(name=model_name.capitalize(), train_probs=train_predictions, train_classes=train_labels, val_probs=val_predictions, val_classes=val_labels, submission_probs=test_predictions['predictions'])
+            members.append(member)
 
-dsp_fwa_member = Member(name="DSP-FWA", train_probs=all_predictions, train_classes=all_labels, val_probs=all_predictions, val_classes=all_labels, submission_probs=all_predictions)
+            acc = accuracy_score(test_predictions['labels'], test_predictions['predictions'])
+            fpr, tpr, _ = roc_curve(test_predictions['labels'], test_predictions['predictions'])
+            auc = roc_auc_score(test_predictions['labels'], test_predictions['predictions'], labels=[0,1])
 
-# Load Ictu Oculi base-learner
-ictu_oculi = ptm.vgg16(num_classes=1000, pretrained='imagenet')
-ictu_oculi.load_state_dict(torch.load(os.getcwd() + '/models/ictu-oculi.pth'))
-ictu_oculi_size = ictu_oculi.input_size[1]
-mean = ictu_oculi.mean
-std = ictu_oculi.std
-ictu_oculi.eval()
+    # Initialise ensemble
+    stack = StackEnsemble()
+    stack.add_members(members)
 
-transform = transforms.Compose([
-    transforms.Resize((ictu_oculi_size, ictu_oculi_size)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean, std)
-])
+    # Train the ensemble
+    stack.fit()
 
-data = CSVDataset(os.getcwd() + '/data/images/', os.getcwd() + '/data/splits/test.csv', 'image_id', 'deepfake', transform=transform)
-dataloader = DataLoader(data)
+    # Get evaluation metrics
+    stack.describe()
 
-all_labels = []
-all_predictions = []
-for i, data_example in enumerate(tqdm(dataloader)):
-    (inputs, labels), name = data_example
-    current_video = name[0].rsplit('_frame', 1)[0]
-    label = labels.data[0].item()
-    all_labels.append(label)
-    output = ictu_oculi(inputs)
-    score = F.softmax(output, dim=1)[:, 1].cpu().data.numpy()
-    pred = int(round(float(score)))
-    all_predictions.append(pred)
-    print(label == pred)
+    # Save ensemble
+    stack.save(os.getcwd() + '/ensemble')
 
-ictu_oculi_member = Member(name="Ictu Oculi", train_probs=all_predictions, train_classes=all_labels, val_probs=all_predictions, val_classes=all_labels, submission_probs=all_predictions)
-
-# Load ManTra-Net base-learner
-mantranet = ptm.vgg16(num_classes=1000, pretrained='imagenet')
-mantranet.load_state_dict(torch.load(os.getcwd() + '/models/mantra-net.pth'))
-mantranet_size = mantranet.input_size[1]
-mean = mantranet.mean
-std = mantranet.std
-mantranet.eval()
-
-transform = transforms.Compose([
-    transforms.Resize((mantranet_size, mantranet_size)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean, std)
-])
-
-data = CSVDataset(os.getcwd() + '/data/images/', os.getcwd() + '/data/splits/test.csv', 'image_id', 'deepfake', transform=transform)
-dataloader = DataLoader(data)
-
-all_labels = []
-all_predictions = []
-for i, data_example in enumerate(tqdm(dataloader)):
-    (inputs, labels), name = data_example
-    current_video = name[0].rsplit('_frame', 1)[0]
-    label = labels.data[0].item()
-    all_labels.append(label)
-    output = mantranet(inputs)
-    score = F.softmax(output, dim=1)[:, 1].cpu().data.numpy()
-    pred = int(round(float(score)))
-    all_predictions.append(pred)
-    print(label == pred)
-
-mantranet_member = Member(name="ManTra-Net", train_probs=all_predictions, train_classes=all_labels, val_probs=all_predictions, val_classes=all_labels, submission_probs=all_predictions)
-
-# Load XceptionNet base-learner
-xceptionnet = torch.load(os.getcwd() + '/models/xceptionnet.pth')
-xceptionnet_size = xceptionnet.input_size[1]
-mean = xceptionnet.mean
-std = xceptionnet.std
-xceptionnet.eval()
-
-transform = transforms.Compose([
-    transforms.Resize((xceptionnet_size, xceptionnet_size)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean, std)
-])
-
-data = CSVDataset(os.getcwd() + '/data/images/', os.getcwd() + '/data/splits/test.csv', 'image_id', 'deepfake', transform=transform)
-dataloader = DataLoader(data)
-
-all_labels = []
-all_predictions = []
-for i, data_example in enumerate(tqdm(dataloader)):
-    (inputs, labels), name = data_example
-    current_video = name[0].rsplit('_frame', 1)[0]
-    label = labels.data[0].item()
-    all_labels.append(label)
-    output = xceptionnet(inputs)
-    score = F.softmax(output, dim=1)[:, 1].cpu().data.numpy()
-    pred = int(round(float(score)))
-    all_predictions.append(pred)
-    print(label == pred)
-
-xceptionnet_member = Member(name="XceptionNet", train_probs=all_predictions, train_classes=all_labels, val_probs=all_predictions, val_classes=all_labels, submission_probs=all_predictions)
-
-# Initialise ensemble
-stack = StackEnsemble()
-members = [capsule_member, dsp_fwa_member, ictu_oculi_member, xceptionnet_member, mantranet_member]
-stack.add_members(members)
-
-stack.fit()
-stack.describe()
+if __name__ == '__main__':
+    main()
