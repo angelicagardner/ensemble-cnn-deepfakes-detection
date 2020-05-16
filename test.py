@@ -88,14 +88,14 @@ def main():
     elif args.model_name == 'xceptionnet':
         model = ptm.xception(num_classes=1000, pretrained='imagenet')
         model.last_linear = nn.Linear(model.last_linear.in_features, 2)
-    model.load_state_dict(torch.load(os.getcwd() + args.model_path + args.model_name + '.pth'))
+    model.load_state_dict(torch.load(args.model_path + args.model_name + '.pth'))
 
     # Make predictions on test set
-    test_results = test(model, os.getcwd() + args.images_path, os.getcwd() + args.csv_path, args.csv_file, device)
+    test_results = test(model, args.images_path, args.csv_path, args.csv_file, device)
 
     # Save evaluation metrics
     print(test_results[0])
-    test_results[1].to_csv(os.path.join(os.getcwd() + args.output_path, 'scores_' + args.model_name + '_' + str(datetime.datetime.now().timestamp()) + '.csv'), index=False)
+    test_results[1].to_csv(os.path.join(args.output_path, 'scores_' + args.model_name + '_' + str(datetime.datetime.now().timestamp()) + '.csv'), index=False)
 
 if __name__ == '__main__':
     main()
