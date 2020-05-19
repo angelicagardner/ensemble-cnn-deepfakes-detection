@@ -1,4 +1,4 @@
-import os, csv, cv2
+import os, csv, cv2, datetime
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, roc_auc_score, average_precision_score
@@ -29,7 +29,7 @@ ex.observers.append(fs)
 def cfg():
     data_path = None  # path to video frames (folder containing images)
     splits_path = None # path to CSV files with information about train, validation, and test splits
-    results_path = None # path to output folder, will contain evaluation results
+    output_path = None # path to output folder, will contain evaluation results
     models_path = None # path to the saved models
     train_csv = None  # path to train set CSV
     val_csv = None  # path to validation set CSV
@@ -114,7 +114,7 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
     EXP_ID = _run._id
 
     # Create folder for saving scoring metrics
-    if not os.path.exists(results_path + 'scores'):
+    if not os.path.exists(results_path + 'model_metrics/train/'):
         os.makedirs(SCORES_DIR)
 
     # Disable threading to run functions sequentially
@@ -143,9 +143,9 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
         optimizer = optim.Adam(model.parameters(), lr=1e-4, betas=[0.5,0.5])
     elif model_name == 'xceptionnet':
         model = ptm.xception(num_classes=1000, pretrained='imagenet')
-        model.last_linear = nn.Linear(model.last_linear.in_features, 2)
         print("Model: XceptionNet")
         optimizer = optim.Adam(model.parameters(), lr=0.00001, betas=[0.5,0.999])
+    model.last_linear = nn.Linear(model.last_linear.in_features, 2)
     size = model.input_size[1]
     mean = model.mean
     std = model.std
@@ -196,8 +196,8 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
             best_train_result = epoch_train_results[0]
             best_val_result = epoch_val_results[0]
             torch.save(model.state_dict(), BEST_MODEL_PATH)
-            epoch_train_results[1].to_csv(os.path.join(results_path, 'models/train/train_predictions_' + model_name + '.csv'), index=False)
-            epoch_val_results[1].to_csv(os.path.join(results_path + 'models/train/val_predictions_' + model_name + '.csv'), index=False)
+            epoch_train_results[1].to_csv(os.path.join(results_path, 'model_predictions/train/train_predictions_' + model_name + '.csv'), index=False)
+            epoch_val_results[1].to_csv(os.path.join(results_path + 'model_predictions/train/val_predictions_' + model_name + '.csv'), index=False)
         else:
             epochs_without_improvement += 1
 
@@ -220,4 +220,4 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
                     'val_acc': best_val_result['acc'],
                     'val_auc': best_val_result['auc']},
                     ignore_index=True)
-    scores.to_csv(os.path.join(SCORES_DIR, 'scores.csv'), index=False, mode='a', header=False)
+    scores.to_csv(os.path.join(SCORES_DIR, 'train_scores_' + model_name + '.csv'), index=False, header=False)
