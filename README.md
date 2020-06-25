@@ -60,29 +60,29 @@ Each shell script in `./scripts/` contains arguments that should be provided to 
 
 Settings and configurations used:
 
-- data_path=<path to video frames (folder containing images)>
+- data_path = <path to video frames (folder containing images)>
 
-- splits_path=<path to CSV files with information about train, validation, and test splits>
+- splits_path = <path to CSV files with information about train, validation, and test splits>
 
-- output_path=<path to output folder where the results should be stored>
+- output_path = <path to output folder where the results should be stored>
 
-- models_path=<path to model classes>
+- models_path = <path to model classes>
 
-- models_pretrained_path=<path to load pretrained models>
+- models_pretrained_path = <path to load pretrained models>
 
-- train_csv=<train CSV file>
+- train_csv = <train CSV file>
 
-- val_csv=<validation CSV file>
+- val_csv = <validation CSV file>
 
-- test_csv=<test CSV file>
+- test_csv = <test CSV file>
 
-- epochs=<number of times a model will go through the complete training set>
+- epochs = <number of times a model will go through the complete training set>
 
-- batch_size=<the amount of data examples included in each iteration>
+- batch_size = <the amount of data examples included in each iteration>
 
-- early_stopping=<training is stopped early if the validation loss has not decrease further after this number of epochs>
+- early_stopping = <training is stopped early if the validation loss has not decrease further after this number of epochs>
 
-- model_name=<single model name>
+- model_name = <single model name>
 
 
 ## 3. Datasets
