@@ -1,32 +1,44 @@
 #!/bin/bash
 
-declare -a networks=( "capsule" "dsp-fwa" "ictu_oculi" "mantranet" "xceptionnet" )
-declare -a epochs=( ["capsule"]=25 ["dsp-fwa"]=20 ["ictu_oculi"]=100 \
-                  ["mantranet"]=500 ["xceptionnet"]=18 )
-declare -a bsize=( ["capsule"]=64 ["dsp-fwa"]=56 ["ictu_oculi"]=40 \
-                   ["mantranet"]=24 ["xceptionnet"]=40 )
+# Make sure the 'python' commmand on your system represents Python 3
 
-IMAGES_ROOT=$PWD/data/images/
-SPLITS_ROOT=$PWD/data/splits/
-RESULTS_ROOT=$PWD/results/
-MODELS_ROOT=$PWD/models/
+# Change these values if you want to adjust the training settings or add/remove single models
+declare -a networks=( "capsule" "dsp-fwa" "ictu_oculi" "xceptionnet" )
+declare -a epochs=( ["capsule"]=25 ["dsp-fwa"]=20 \ 
+                    ["ictu_oculi"]=100 ["xceptionnet"]=18 )
+declare -a bsize=( ["capsule"]=64 ["dsp-fwa"]=56 \
+                    ["ictu_oculi"]=40 ["xceptionnet"]=40 )
+declare -a estop=( ["capsule"]=0 ["dsp-fwa"]=0 \
+                    ["ictu_oculi"]=0 ["xceptionnet"]=10 )
 
+# Change these variable values if you want other settings than the default ones
+DATA_PATH=$PWD/data/images/
+SPLITS_PATH=$PWD/data/splits/
+OUTPUT_PATH=$PWD/results/
+MODELS_PATH=$PWD/models/
+MODELS_PRETRAINED_PATH=$PWD/models/pre_trained/
+MODELS_OUTPUT_PATH=$PWD/models/re_trained/
 TRAIN_CSV=train.csv
 VAL_CSV=val.csv
 TEST_CSV=test.csv
 
 # Data preprocessing
-python3 split.py train_csv=$TRAIN_CSV val_csv=$VAL_CSV test_csv=$TEST_CSV
+python split.py train_csv=$TRAIN_CSV val_csv=$VAL_CSV test_csv=$TEST_CSV
 
-# Training and testing individual models
-for network in "${networks[@]}"; do
-  python3 individual_models.py with \
-  data_path=$IMAGES_ROOT splits_path=$SPLITS_ROOT \
-  results_path=$RESULTS_ROOT models_path=$MODELS_ROOT \
-  train_csv=$TRAIN_CSV val_csv=$VAL_CSV test_csv=$TEST_CSV \
-  epochs="${epochs[$network]}" batch_size="${bsize[$network]}" \
-  model_name="$network" split_id=1 --name $network
+# Training single models
+for i in $(seq 1); do # Change $(seq 1) to $(seq 5), $(seq 10), or any number if you want to add more iterations, e.g. k-fold cross validation
+  for network in "${networks[@]}"; do
+    python train.py with \
+    data_path=$DATA_PATH splits_path=$SPLITS_PATH \
+    output_path=$OUTPUT_PATH models_path=$MODELS_PATH \
+    models_pretrained_path=$MODELS_PRETRAINED_PATH models_output_path=$MODELS_OUTPUT_PATH \
+    train_csv=$TRAIN_CSV val_csv=$VAL_CSV \
+    epochs="${epochs[$network]}" batch_size="${bsize[$network]}" early_stopping="${estop[$network]}" \
+    model_name="$network" split_id=$i --name $network
+  done
 done
 
-# Ensemble modelling
-python3 ensemble.py
+# Evaluating single models
+
+# Modeling and evaluating ensembles
+python ensemble.py

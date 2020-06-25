@@ -1,10 +1,7 @@
-import os, csv, cv2, datetime
+import os, csv, cv2
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, roc_auc_score, average_precision_score
-import pretrainedmodels as ptm
-import matplotlib.pyplot as plt
-import seaborn as sn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,6 +9,11 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
+
+from models.Capsule import Capsule
+from models.DSP_FWA import DSP_FWA
+from models.Ictu_Oculi import Ictu_Oculi
+from models.XceptionNet import Xception
 
 from sacred import Experiment
 from sacred.observers import FileStorageObserver
@@ -27,19 +29,23 @@ ex.observers.append(fs)
 # Add default configurations
 @ex.config
 def cfg():
-    data_path = None  # path to video frames (folder containing images)
-    splits_path = None # path to CSV files with information about train, validation, and test splits
-    output_path = None # path to output folder, will contain evaluation results
-    models_path = None # path to the saved models
-    train_csv = None  # path to train set CSV
-    val_csv = None  # path to validation set CSV
+    home = os.getcwd()
+
+    data_path = os.path.join(home, '../data/images/')  # path to video frames (folder containing images)
+    splits_path = os.path.join(home, '../data/splits/') # path to CSV files with information about train, validation, and test splits
+    output_path = os.path.join(home, '../results/') # path to output folder where the results should be stored
+    models_path = os.path.join(home, '../models/') # path to model classes
+    models_pretrained_path = os.path.join(home, '../models/pre_trained/') # path to load pre-trained models
+    models_output_path = os.path.join(home, '../models/re_trained/') # path to where to save the re-trained models
+    train_csv = 'train.csv'  # train CSV file
+    val_csv = 'val.csv'  # validation CSV file
     epochs = 100  # number of times a model will go through the complete training set
-    batch_size = 32 # the amount of data examples included in each epoch
+    batch_size = 32 # the amount of data examples included in each iteration
     early_stopping = 10 # training is stopped early if the validation loss has not decrease further after this number of epochs
-    model_name = None  # CNN model
+    model_name = None  # single model name
     split_id = 1 # split id (int)
 
-# Function used for training set
+# Function used for training
 def train(model, dataloader, device, criterion, optimizer=None, batches_per_epoch=None):
     tqdm_loader = tqdm(dataloader)
 
@@ -106,50 +112,43 @@ def train(model, dataloader, device, criterion, optimizer=None, batches_per_epoc
 
 # Main function
 @ex.automain
-def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, epochs, batch_size, early_stopping, model_name, split_id, _run):
+def main(data_path, splits_path, output_path, models_path, models_pretrained_path, models_output_path, train_csv, val_csv, epochs, batch_size, early_stopping, model_name, split_id, _run):
 
-    # Constants
-    SCORES_DIR = os.path.join(results_path, 'scores')
-    BEST_MODEL_PATH = os.path.join(models_path, model_name + '.pth')
+    SCORES_DIR = os.path.join(output_path, 'model_metrics/train')
+    BEST_MODEL_PATH = os.path.join(models_output_path, model_name + '.pth')
     EXP_ID = _run._id
 
     # Create folder for saving scoring metrics
-    if not os.path.exists(results_path + 'model_metrics/train/'):
+    if not os.path.exists(SCORES_DIR):
         os.makedirs(SCORES_DIR)
 
     # Disable threading to run functions sequentially
     cv2.setNumThreads(0)
+    
     # CPU or GPU utilisation
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load model and initialize optimiser algorithm with model settings
     if model_name == 'capsule':
-        model = ptm.vgg19(num_classes=1000, pretrained='imagenet')
-        print("Model: Capsule")
+        model = Capsule()
         optimizer = optim.Adam(model.parameters(), lr=0.0005, betas=[0.9,0.999])
     elif model_name == 'dsp-fwa':
-        model = ptm.resnet50(num_classes=1000, pretrained='imagenet')
-        print("Model: DSP-FWA")
+        model = DSP_FWA()
         optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9, weight_decay=0.001)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.95, min_lr=1e-5)
     elif model_name == 'ictu_oculi':
-        model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
-        print("Model: Ictu Oculi")
+        model = Ictu_Oculi()
         optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9, weight_decay=0.001)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.9, min_lr=1e-5)
-    elif model_name == 'mantranet':
-        model = ptm.vgg16(num_classes=1000, pretrained='imagenet')
-        print("Model: ManTra-Net")
-        optimizer = optim.Adam(model.parameters(), lr=1e-4, betas=[0.5,0.5])
     elif model_name == 'xceptionnet':
-        model = ptm.xception(num_classes=1000, pretrained='imagenet')
-        print("Model: XceptionNet")
+        model = Xception()
         optimizer = optim.Adam(model.parameters(), lr=0.00001, betas=[0.5,0.999])
-    model.last_linear = nn.Linear(model.last_linear.in_features, 2)
+    model.load_state_dict(torch.load(os.path.join(models_pretrained_path, model_name + '.pth')))
     size = model.input_size[1]
     mean = model.mean
     std = model.std
-    model.to(device)    
+    model.to(device) 
+    print("Model: {}".format(model_name.upper()))   
 
     # Image transformations
     transform = transforms.Compose([
@@ -161,11 +160,11 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
     # Load datasets
     dataset_train = CSVDataset(data_path, splits_path + train_csv, 'frame_id', 'deepfake', transform=transform)
     dataset_val = CSVDataset(data_path, splits_path + val_csv, 'frame_id', 'deepfake', transform=transform)
-    dataloader_train = DataLoader(dataset_train)
-    dataloader_val = DataLoader(dataset_val)
+    dataloader_train = DataLoader(dataset_train, batch_size=batch_size)
+    dataloader_val = DataLoader(dataset_val, batch_size=batch_size)
 
     # Training settings
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.BCELoss()
 
     # Train model
     best_val_auc = 0.0
@@ -196,8 +195,8 @@ def main(data_path, splits_path, results_path, models_path, train_csv, val_csv, 
             best_train_result = epoch_train_results[0]
             best_val_result = epoch_val_results[0]
             torch.save(model.state_dict(), BEST_MODEL_PATH)
-            epoch_train_results[1].to_csv(os.path.join(results_path, 'model_predictions/train/train_predictions_' + model_name + '.csv'), index=False)
-            epoch_val_results[1].to_csv(os.path.join(results_path + 'model_predictions/train/val_predictions_' + model_name + '.csv'), index=False)
+            epoch_train_results[1].to_csv(os.path.join(output_path, 'model_predictions/train/train_predictions_' + model_name + '.csv'), index=False)
+            epoch_val_results[1].to_csv(os.path.join(output_path + 'model_predictions/train/val_predictions_' + model_name + '.csv'), index=False)
         else:
             epochs_without_improvement += 1
 

@@ -26,7 +26,7 @@ The remaining files in this folder are used for the pre-processing phase during 
 - :file_folder: `./models/`
 
 The **models** folder contains class code from other research projects to instantiate the single models used. You can read more about these projects below in section 4 about single models. 
-The class codes are used to instantiate single models, then the pre-trained models are used, retrieved from each project's original authors. As some of these pre-trained models are of larger file sizes (too large to fit this repository), they need to be downloaded from links provided by the authors. See the text file `./models/pre-trained/readme.txt` for more information. 
+The class codes are used to instantiate single models, then the pre-trained models are used, retrieved from each project's original authors. As some of these pre-trained models are of larger file sizes (too large to fit this repository), they need to be downloaded from links provided by the authors. See the text file `./models/pre_trained/readme.txt` for more information. 
 
 After re-training the single models, they will be saved in the re-trained subfolder. The ensembles will use these re-trained models for ensembling. 
 
