@@ -69,7 +69,9 @@ Settings and configurations used:
 
 - models_path=<path to model classes>
 
-- models_pretrained_path=<path to load pretrained models>
+- models_pretrained_path=<path to load pre-trained models>
+
+- models_output_path=<path to where to save the re-trained models>
 
 - train_csv=<train CSV file>
 
