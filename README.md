@@ -14,7 +14,7 @@ In the root folder, you will find the main files used during the experiment. Tho
 
 This project uses [Sacred](https://sacred.readthedocs.io/en/stable/experiment.html) for experiment management. Sacred will only be executed if the full experiment is initiated. 
 
-- Folder: `./data/`
+- :file_folder `./data/`
 
 The **data** folder contains everything related to the datasets used in this experiment. 
 
@@ -23,24 +23,31 @@ However you choose to do this, the result should be a folder containing all vide
 
 The remaining files in this folder are used for the pre-processing phase during the experiment.
 
-- Folder: `./experiments/`
-
-The **experiments** folder contains three shell scripts (Bash) that you can run on Unix systems. For Windows, you need to look at the code and run each of those files sequentially with the arguments presented. 
-
-`run.sh` runs the full experiment (i.e. pre-processing, training single models, evaluating single models, and lastly creating and evaluating ensemble), `train_all.sh` trains all single models, `test_all.sh` evaluates all single models, `ensembles.sh` creates and evaluates all ensembles.
-
-- Folder: `./models`
+- :file_folder `./models/`
 
 The **models** folder contains class code from other research projects to instantiate the single models used. You can read more about these projects below in section 4 about single models. 
 The class codes are used to instantiate single models, then the pre-trained models are used, retrieved from each project's original authors. As some of these pre-trained models are of larger file sizes (too large to fit this repository), they need to be downloaded from links provided by the authors. See the text file `./models/pre-trained/readme.txt` for more information. 
 
 After re-training the single models, they will be saved in the re-trained subfolder. The ensembles will use these re-trained models for ensembling. 
 
-- Folder: `./results`
+- :file_folder `./results/`
+
+The **results** folder contains the outputs from the experiment. All outputs from the Sacred experiment management is placed in `./results/experiments/` subfolder. 
+
+For single models, subfolders `./results/model_metrics/` and `./results/models_predictions/` contain training and testing output data: single model evaluation metric values as well as video frame-level predictions respectively.
+
+After evaluating the ensemble performances, those evaluation metrics will be saved in the `./results/ensemble/` subfolder.
+
+- :file_folder `./scripts/`
+
+The **scripts** folder contains three shell scripts (Bash) that you can run on Unix systems. For Windows, you need to look at the code and run each of those files sequentially with the arguments presented. 
+
+`run.sh` runs the full experiment (i.e. pre-processing, training single models, evaluating single models, and lastly creating and evaluating ensemble), `train_all.sh` trains all single models, `test_all.sh` evaluates all single models, `ensembles.sh` creates and evaluates all ensembles.
 
 ## 2. Setup
 
-Run `pip3 install -r requirements.txt`
+Run `pip install -r requirements.txt`
+(Make sure pip represents python 3)
 
 
 ### Requirements
@@ -49,27 +56,40 @@ See file *requirements.txt* for necessary packages.
 
 ### Configurations
 
-Change configurations from default ones in ```run.sh``` or directly through the terminal by adding the following commands:
-```shell
-python3 individual_models.py with
-data_path=<path to video frames (folder containing images)>
-splits_path=<path to CSV files with information about train, validation, and test splits>
-results_path=<path to output folder, will contain evaluation results>
-models_path=<path to saved models>
-train_csv=<path to train set CSV>
-val_csv=<path to validation set CSV>
-test_csv=<path to test set CSV>
-epochs=<number of times a model will go through the complete training set>
-batch_size=<the amount of data examples included in each epoch>
-early_stopping=<training is stopped early if the validation loss has not decrease further after this number of epochs>
-model_name=<CNN model>
-``` 
+Each shell script in `./scripts/` contains arguments that should be provided to the files for execution. These arguments represent configurations and settings and can, in most cases, be left out if the program should use the default configurations (i.e. as the values used during this experiment).
+
+Settings and configurations used:
+(Check which values that are specific to what file for more information)
+
+- data_path=<path to video frames (folder containing images)>
+
+- splits_path=<path to CSV files with information about train, validation, and test splits>
+
+- output_path=<path to output folder where the results should be stored>
+
+- models_path=<path to model classes>
+
+- models_pretrained_path=<path to load pretrained models>
+
+- train_csv=<train CSV file>
+
+- val_csv=<validation CSV file>
+
+- test_csv=<test CSV file>
+
+- epochs=<number of times a model will go through the complete training set>
+
+- batch_size=<the amount of data examples included in each iteration>
+
+- early_stopping=<training is stopped early if the validation loss has not decrease further after this number of epochs>
+
+- model_name=<single model name>
 
 
 ## 3. Datasets
 
 1. Download the datasets.
-2. Put all videos into the same directory as a CSV-file with information about each video (e.g. `./data/videos`). Alternately, take a look at the file `data_sorting.py` for the code used in this research to organise the data.
+2. Put all videos into the same directory as a CSV-file with information about each video (e.g. `./data/videos`). Alternately, take a look at the file `./data/preprocessing/data_sorting.py` for the code used in this research to organise the data.
 
 ### Celeb-DF
 The dataset can be downloaded [here](https://github.com/danmohaha/celeb-deepfakeforensics#download).
@@ -84,27 +104,65 @@ Both the small sample training set and the full training set can be downloaded [
 
 ## 4. Single models
 
-Here you can find the original
+The single models used in this experiment were reproduced from other research projects for deepfakes detection. Below is where you can find more information about those models.
 
 ### (1) Capsule
 
 - Reproduced from:
-https://github.com/tonylins/pytorch-mobilenet-v2
+https://github.com/nii-yamagishilab/Capsule-Forensics-v2/blob/master/model_big.py
 
-- Original License: Apache License 2.0.
+- Original License: 
+BSD 3-Clause License
 
-- Reference
+- Reference:
+H. H. Nguyen, J. Yamagishi, and I. Echizen, “Use of a Capsule Network to Detect Fake Images and Videos,” arXiv preprint arXiv:1910.12467. 2019 Oct 29.
 
 ### (2) DSP-FWA
 
+- Reproduced from:
+https://github.com/danmohaha/DSP-FWA/blob/master/py_utils/DL/pytorch_utils/models/classifier.py
+
+- Original License:
+https://github.com/danmohaha/DSP-FWA#notice
+
+- Reference:
+Li, Y., & Lyu, S. (2019). Exposing DeepFake Videos By Detecting Face Warping Artifacts. In IEEE Conference on Computer Vision and Pattern Recognition Workshops (CVPRW).
+
 ### (3) Ictu Oculi
 
+- Reproduced from:
+https://github.com/danmohaha/WIFS2018_In_Ictu_Oculi/blob/master/blink_net.py
+
+- Original License:
+https://github.com/danmohaha/WIFS2018_In_Ictu_Oculi#notice
+
+- Reference:
+Li, Y., Chang, M.C., and Lyu, S. 2018. In Ictu Oculi: Exposing AI Generated Fake Face Videos by Detecting Eye Blinking. In IEEE International Workshop on Information Forensics and Security (WIFS).
+
 ### (4) XceptionNet
+
+- Reproduced from:
+https://github.com/ondyari/FaceForensics/blob/master/classification/network/xception.py
+
+- Original License:
+https://github.com/ondyari/FaceForensics/blob/master/LICENSE
+
+- Reference:
+Andreas Rössler, Davide Cozzolino, Luisa Verdoliva, Christian Riess, Justus Thies, and Matthias Nie\ssner 2019. FaceForensics++: Learning to Detect Manipulated Facial Images. In International Conference on Computer Vision (ICCV).
 
 
 ## 5. Ensembles
 
-...
+For ensemble building, the package DeepStack was used. You can find more information about it [here](https://github.com/jcborges/DeepStack). 
+
+Six different ensembles are built during the experiment:
+
+1. Two best performing single models, using hard voting.
+2. Two best performing single models, using soft voting.
+3. Two single models with the smallest file sizes, using hard voting.
+4. Two single models with the smallest file sizes, using soft voting.
+5. All single models, using hard voting.
+6. All single models, using soft voting.
 
 
 ## 6. Authors
@@ -116,13 +174,12 @@ Google Scholar Profile(s):
 
 ## 7. Citation
 
-This research was carried out while the author studied at Linneaus University, Sweden.
+This bachelor's degree project was carried out while the author studied at [Linnaeus University the Faculty of Technology, Department of Computer Science](https://lnu.se/en/meet-linnaeus-university/Organisation/faculty-of-technology/) in Sweden.
 
-If you use this code or research as a reference, please cite:
+If you use anything from this study as a reference, please cite:
 ```
-...
-```
-or reference (IEEE):
-```
-...
+@book{gardner_2020, 
+journal={Stronger Together? An Ensemble of CNNs for Deepfakes Detection}, 
+author={Gardner, Angelica}, 
+year={2020}}
 ```
