@@ -14,7 +14,7 @@ In the root folder, you will find the main files used during the experiment. Tho
 
 This project uses [Sacred](https://sacred.readthedocs.io/en/stable/experiment.html) for experiment management. Sacred will only be executed if the full experiment is initiated. 
 
-- :file_folder `./data/`
+- :file_folder: `./data/`
 
 The **data** folder contains everything related to the datasets used in this experiment. 
 
@@ -23,14 +23,14 @@ However you choose to do this, the result should be a folder containing all vide
 
 The remaining files in this folder are used for the pre-processing phase during the experiment.
 
-- :file_folder `./models/`
+- :file_folder: `./models/`
 
 The **models** folder contains class code from other research projects to instantiate the single models used. You can read more about these projects below in section 4 about single models. 
 The class codes are used to instantiate single models, then the pre-trained models are used, retrieved from each project's original authors. As some of these pre-trained models are of larger file sizes (too large to fit this repository), they need to be downloaded from links provided by the authors. See the text file `./models/pre-trained/readme.txt` for more information. 
 
 After re-training the single models, they will be saved in the re-trained subfolder. The ensembles will use these re-trained models for ensembling. 
 
-- :file_folder `./results/`
+- :file_folder: `./results/`
 
 The **results** folder contains the outputs from the experiment. All outputs from the Sacred experiment management is placed in `./results/experiments/` subfolder. 
 
@@ -38,7 +38,7 @@ For single models, subfolders `./results/model_metrics/` and `./results/models_p
 
 After evaluating the ensemble performances, those evaluation metrics will be saved in the `./results/ensemble/` subfolder.
 
-- :file_folder `./scripts/`
+- :file_folder: `./scripts/`
 
 The **scripts** folder contains three shell scripts (Bash) that you can run on Unix systems. For Windows, you need to look at the code and run each of those files sequentially with the arguments presented. 
 
@@ -59,7 +59,6 @@ See file *requirements.txt* for necessary packages.
 Each shell script in `./scripts/` contains arguments that should be provided to the files for execution. These arguments represent configurations and settings and can, in most cases, be left out if the program should use the default configurations (i.e. as the values used during this experiment).
 
 Settings and configurations used:
-(Check which values that are specific to what file for more information)
 
 - data_path=<path to video frames (folder containing images)>
 
