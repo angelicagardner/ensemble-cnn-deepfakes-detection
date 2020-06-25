@@ -1,42 +1,44 @@
-# 2dv50e
+# Stronger Together? An Ensemble of CNNs for Deepfakes Detection.
 
-This project contains the source code of all experiments described in 'Degree Project at Bachelor Level - VT2020 - Linnaeus University.'
-
-This repository is currently under mantainance, feel free to open an issue if you encounter problems or something that needs fixing.
+This project contains the source code of the experiment described in *'Stronger Together? An Ensemble of CNNs for Deepfakes Detection'* which was my degree project at bachelor level at Linnaeus University during spring semester 2020. As the class has ended, this project is currently not active and I consider this repository as under mantainance. However, do feel free to open an issue if you encounter problems or something that needs fixing.
 
 
 ## Abstract
 
-> Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-> Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-> Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-> Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+> Deepfakes technology is a face swap technique that enables anyone to replace faces in a video, with highly realistic results. Despite its usefulness, if used maliciously, this technique can have a significant impact on society, for instance, through the spreading of fake news or cyberbullying. This makes the ability of deepfakes detection a problem of utmost importance. In this paper, I tackle the problem of deepfakes detection by identifying deepfakes forgeries in video sequences. Inspired by the state-of-the-art, I study the ensembling of different machine learning solutions built on convolutional neural networks (CNNs) and use these models as objects for comparison between ensemble and single model performances. Existing work in the research field of deepfakes detection suggests that escalated challenges posed by modern deepfake videos make it increasingly difficult for detection methods. I evaluate that claim by testing the detection performance of four single CNN models as well as six stacked ensembles on three modern deepfakes datasets. I compare various ensemble approaches to combine single models and in what way their predictions should be incorporated into the ensemble output. The results I found was that the best approach for deepfakes detection is to create an ensemble, though, the ensemble approach plays a crucial role in the detection performance. The final proposed solution is an ensemble of all available single models which use the concept of soft (weighted) voting to combine its base-learners’ predictions. Results show that this proposed solution significantly improved deepfakes detection performance and substantially outperformed all single models.
 
 
-## Project structure
+## 1. Project structure
 
-- Datasets folder for placing all videos.
-```
-    ./data/videos
-```
+In the root folder, you will find the main files used during the experiment. Those are `train.py` (for training single models), `test.py` (for evaluating single models), and `ensemble.py` (for creating and evaluating ensembles).
 
-- Datasets folder where all image frames are placed when splitting the dataset.
-```
-    ./data/images
-```
+This project uses [Sacred](https://sacred.readthedocs.io/en/stable/experiment.html) for experiment management. Sacred will only be executed if the full experiment is initiated. 
 
-- Splits folder where information about subsets for train, validation, and test splits will be stored.
-```
-    ./data/splits
-```
+- Folder: `./data/`
 
-- Models folder where you find individual model implementations.
-```
-    ./models/<model_name>
-```
+The **data** folder contains everything related to the datasets used in this experiment. 
 
+After downloading the datasets, I moved all datasets to the root folder and ran the code in the file `./data/preprocessing/data_sorting.py`. This code moves all videos to the *videos* folder while creating a CSV file with the columns 'video_id','fake','original_dataset'.
+However you choose to do this, the result should be a folder containing all videos and a CSV file with information about video ID and it's associated label (i.e. real/deepfake).
 
-## Setup
+The remaining files in this folder are used for the pre-processing phase during the experiment.
+
+- Folder: `./experiments/`
+
+The **experiments** folder contains three shell scripts (Bash) that you can run on Unix systems. For Windows, you need to look at the code and run each of those files sequentially with the arguments presented. 
+
+`run.sh` runs the full experiment (i.e. pre-processing, training single models, evaluating single models, and lastly creating and evaluating ensemble), `train_all.sh` trains all single models, `test_all.sh` evaluates all single models, `ensembles.sh` creates and evaluates all ensembles.
+
+- Folder: `./models`
+
+The **models** folder contains class code from other research projects to instantiate the single models used. You can read more about these projects below in section 4 about single models. 
+The class codes are used to instantiate single models, then the pre-trained models are used, retrieved from each project's original authors. As some of these pre-trained models are of larger file sizes (too large to fit this repository), they need to be downloaded from links provided by the authors. See the text file `./models/pre-trained/readme.txt` for more information. 
+
+After re-training the single models, they will be saved in the re-trained subfolder. The ensembles will use these re-trained models for ensembling. 
+
+- Folder: `./results`
+
+## 2. Setup
 
 Run `pip3 install -r requirements.txt`
 
@@ -64,7 +66,7 @@ model_name=<CNN model>
 ``` 
 
 
-## Datasets
+## 3. Datasets
 
 1. Download the datasets.
 2. Put all videos into the same directory as a CSV-file with information about each video (e.g. `./data/videos`). Alternately, take a look at the file `data_sorting.py` for the code used in this research to organise the data.
@@ -80,25 +82,39 @@ The small sample training set was used during this experiment. There's a much la
 Both the small sample training set and the full training set can be downloaded [here](https://www.kaggle.com/c/deepfake-detection-challenge/data).
 
 
-## Individual models
+## 4. Single models
+
+Here you can find the original
 
 ### (1) Capsule
+
+- Reproduced from:
+https://github.com/tonylins/pytorch-mobilenet-v2
+
+- Original License: Apache License 2.0.
+
+- Reference
+
 ### (2) DSP-FWA
+
 ### (3) Ictu Oculi
-### (4) ManTra-Net
-### (5) XceptionNet
+
+### (4) XceptionNet
 
 
-## Ensemble
+## 5. Ensembles
 
 ...
 
 
-## References
-- Xception PyTorch
+## 6. Authors
+
+Google Scholar Profile(s):
+
+- [Angelica Gardner](https://scholar.google.com/citations?user=mwcuZfkAAAAJ)
 
 
-## Citation
+## 7. Citation
 
 This research was carried out while the author studied at Linneaus University, Sweden.
 
