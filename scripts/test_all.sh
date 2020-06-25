@@ -1,58 +1,51 @@
 #!/bin/bash
 
-IMAGES_ROOT=$PWD/data/images/
-SPLITS_ROOT=$PWD/data/splits/
-RESULTS_ROOT=$PWD/results/models/test/
-MODELS_ROOT=$PWD/models/
+# Make sure the 'python' commmand on your system represents Python 3
 
-TEST_CSV=samle.csv
+# Change these variable values if you want other settings than the default ones
+DATA_PATH=$PWD/data/images/
+SPLITS_PATH=$PWD/data/splits/
+OUTPUT_PATH=$PWD/results/
+MODELS_PATH=$PWD/models/
+MODELS_OUTPUT_PATH=$PWD/models/re_trained/
+TEST_CSV=test.csv
 
 echo ""
 echo "-------------------------------------------------"
 echo "| Testing Capsule                               |"
 echo "-------------------------------------------------"
-python3 test.py \
---model_name=capsule --model_path=$MODELS_ROOT \
---images_path=$IMAGES_ROOT \
---csv_path=$SPLITS_ROOT --csv_file=$TEST_CSV \
+python test.py \
+--model_name=capsule --model_path=$MODELS_PATH \
+--data_path=$DATA_PATH \
+--splits_path=$SPLITS_ROOT --test_csv=$TEST_CSV \
 --output_path=$RESULTS_ROOT
 
 echo ""
 echo "-------------------------------------------------"
 echo "| Testing DSP-FWA                               |"
 echo "-------------------------------------------------"
-python3 test.py \
---model_name=dsp-fwa --model_path=$MODELS_ROOT \
---images_path=$IMAGES_ROOT \
---csv_path=$SPLITS_ROOT --csv_file=$TEST_CSV \
+python test.py \
+--model_name=dsp-fwa --model_path=$MODELS_PATH \
+--data_path=$DATA_PATH  \
+--splits_path=$SPLITS_ROOT --test_csv=$TEST_CSV \
 --output_path=$RESULTS_ROOT
 
 echo ""
 echo "-------------------------------------------------"
 echo "| Testing Ictu Oculi                            |"
 echo "-------------------------------------------------"
-python3 test.py \
---model_name=ictu_oculi --model_path=$MODELS_ROOT \
---images_path=$IMAGES_ROOT \
---csv_path=$SPLITS_ROOT --csv_file=$TEST_CSV \
---output_path=$RESULTS_ROOT
-
-echo ""
-echo "-------------------------------------------------"
-echo "| Testing ManTra-Net                            |"
-echo "-------------------------------------------------"
-python3 test.py \
---model_name=mantranet --model_path=$MODELS_ROOT \
---images_path=$IMAGES_ROOT \
---csv_path=$SPLITS_ROOT --csv_file=$TEST_CSV \
+python test.py \
+--model_name=ictu_oculi --model_path=$MODELS_PATH \
+--data_path=$DATA_PATH  \
+--splits_path=$SPLITS_ROOT --test_csv=$TEST_CSV \
 --output_path=$RESULTS_ROOT
 
 echo ""
 echo "-------------------------------------------------"
 echo "| Testing XceptionNet                           |"
 echo "-------------------------------------------------"
-python3 test.py \
---model_name=xceptionnet --model_path=$MODELS_ROOT \
---images_path=$IMAGES_ROOT \
---csv_path=$SPLITS_ROOT --csv_file=$TEST_CSV \
+python test.py \
+--model_name=xceptionnet --model_path=$MODELS_PATH \
+--data_path=$DATA_PATH \
+--splits_path=$SPLITS_ROOT --test_csv=$TEST_CSV \
 --output_path=$RESULTS_ROOT

@@ -25,8 +25,9 @@ TEST_CSV=test.csv
 # Data preprocessing
 python split.py train_csv=$TRAIN_CSV val_csv=$VAL_CSV test_csv=$TEST_CSV
 
-# Training single models
 for i in $(seq 1); do # Change $(seq 1) to $(seq 5), $(seq 10), or any number if you want to add more iterations, e.g. k-fold cross validation
+  
+  # Training single models
   for network in "${networks[@]}"; do
     python train.py with \
     data_path=$DATA_PATH splits_path=$SPLITS_PATH \
@@ -36,9 +37,15 @@ for i in $(seq 1); do # Change $(seq 1) to $(seq 5), $(seq 10), or any number if
     epochs="${epochs[$network]}" batch_size="${bsize[$network]}" early_stopping="${estop[$network]}" \
     model_name="$network" split_id=$i --name $network
   done
+  
+  # Evaluating single models
+  python test.py with \
+  models_path=$MODELS_PATH output_path=$OUTPUT_PATH \
+  data_path=$DATA_PATH splits_path=$SPLITS_PATH \
+  model_name="$network" models_pretrained_path=$MODELS_PRETRAINED_PATH \
+  models_retrained_path=$MODELS_OUTPUT_PATH
+  
 done
-
-# Evaluating single models
 
 # Modeling and evaluating ensembles
 python ensemble.py
