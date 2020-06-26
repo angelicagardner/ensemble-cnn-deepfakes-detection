@@ -42,7 +42,7 @@ After evaluating the ensemble performances, those evaluation metrics will be sav
 
 The **scripts** folder contains three shell scripts (Bash) that you can run on Unix systems. For Windows, you need to look at the code and run each of those files sequentially with the arguments presented. 
 
-`run.sh` runs the full experiment (i.e. pre-processing, training single models, evaluating single models, and lastly creating and evaluating ensemble), `train_all.sh` trains all single models, `test_all.sh` evaluates all single models, `ensembles.sh` creates and evaluates all ensembles.
+`run.sh` runs the full experiment (i.e. pre-processing, training single models, evaluating single models, and lastly creating and evaluating ensemble), `train_all.sh` trains all single models, and `test_all.sh` evaluates all single models.
 
 ## 2. Setup
 

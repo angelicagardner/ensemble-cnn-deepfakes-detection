@@ -44,8 +44,10 @@ for i in $(seq 1); do # Change $(seq 1) to $(seq 5), $(seq 10), or any number if
   data_path=$DATA_PATH splits_path=$SPLITS_PATH \
   model_name="$network" models_pretrained_path=$MODELS_PRETRAINED_PATH \
   models_retrained_path=$MODELS_OUTPUT_PATH
-  
 done
 
 # Modeling and evaluating ensembles
-python ensemble.py
+python ensemble.py with \
+models_saved_path=$MODELS_OUTPUT_PATH output_path=$OUTPUT_PATH \
+models_train_predictions_path=$OUTPUT_PATH/model_predictions/train/ models_test_predictions_path=$OUTPUT_PATH/model_predictions/test/ \
+data_path=$DATA_PATH splits_path=$SPLITS_PATH csv_file=$TEST_CSV
