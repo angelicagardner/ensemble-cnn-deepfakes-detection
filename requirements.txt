@@ -1,4 +1,4 @@
-tensorflow==2.5.1
+tensorflow==2.5.2
 deepstack==0.0.9
 numpy==1.18.1
 tqdm==4.43.0
