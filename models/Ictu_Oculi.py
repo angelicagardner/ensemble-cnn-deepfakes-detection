@@ -2,154 +2,180 @@
 In Ictu Oculi: Exposing AI Created Fake Videos by Detecting Eye Blinking
 IEEE International Workshop on Information Forensics and Security (WIFS), 2018
 Yuezun Li, Ming-ching Chang and Siwei Lyu
+
+The original implementation is written in TensorFlow:
+https://github.com/danmohaha/WIFS2018_In_Ictu_Oculi/blob/master/blink_net.py (BlinkCNN)
+https://github.com/danmohaha/WIFS2018_In_Ictu_Oculi/blob/master/deep_base/vgg16.py (network structure)
+
+This file is a PyTorch port of the BlinkCNN (CNN-VGG16) network so it can be trained
+together with the other single models. The layer structure follows deep_base/vgg16.py
+and the pre-trained TensorFlow checkpoint provided by the authors is loaded directly.
 """
-from deep_base import ops as net_ops
-from deep_base import vgg16 as base
-import tensorflow as tf
+
+import glob
+import os
+
 import numpy as np
-import yaml, os
-from easydict import EasyDict as edict
-pwd = os.path.dirname(__file__)
+import torch
+import torch.nn.functional as F
+from torch import nn
 
-class BlinkCNN(object):
+# (layer name, number of output channels), 'pool' = 2x2 max pooling with stride 2
+VGG16_LAYERS = [
+    ("conv1_1", 64),
+    ("conv1_2", 64),
+    "pool",
+    ("conv2_1", 128),
+    ("conv2_2", 128),
+    "pool",
+    ("conv3_1", 256),
+    ("conv3_2", 256),
+    ("conv3_3", 256),
+    "pool",
+    ("conv4_1", 512),
+    ("conv4_2", 512),
+    ("conv4_3", 512),
+    "pool",
+    ("conv5_1", 512),
+    ("conv5_2", 512),
+    ("conv5_3", 512),
+    "pool",
+]
+
+
+class BlinkCNN(nn.Module):
     """
-    CNN for eye blinking detection
-    """
-
-    def __init__(self,
-                 is_train
-                 ):
-
-        cfg_file = os.path.join(pwd, 'blink_cnn.yml')
-        with open(cfg_file, 'r') as f:
-            cfg = edict(yaml.load(f))
-
-        self.cfg = cfg
-        self.img_size = cfg.IMG_SIZE
-        self.num_classes = cfg.NUM_CLASS
-        self.is_train = is_train
-
-        self.layers = {}
-        self.params = {}
-
-    def build(self):
-        # Input
-        self.input = tf.placeholder(dtype=tf.float32, shape=[None, self.img_size[0], self.img_size[1], self.img_size[2]])
-        self.layers = base.get_prob(self.input, self.params, self.num_classes, self.is_train)
-        self.prob = self.layers.prob
-        self.gt = tf.placeholder(dtype=tf.int32, shape=[None])
-        self.var_list = tf.trainable_variables()
-
-    def loss(self):
-        self.net_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.gt, logits=self.layers.fc8)
-        self.net_loss = tf.reduce_mean(self.net_loss)
-        tf.losses.add_loss(self.net_loss)
-        # L2 weight regularize
-        self.L2_loss = tf.reduce_mean([self.cfg.TRAIN.BETA * tf.nn.l2_loss(v)
-                     for v in tf.trainable_variables() if 'weights' in v.name])
-        tf.losses.add_loss(self.L2_loss)
-        self.total_loss = tf.losses.get_total_loss()
-
-
-class BlinkLRCN(object):
-    """
-    LRCN for eye blinking detection
+    VGG16 network as defined in deep_base/vgg16.py (get_prob), with 2 output classes.
     """
 
-    def __init__(self,
-                 is_train
-                 ):
-
-        cfg_file = os.path.join(pwd, 'blink_lrcn.yml')
-        with open(cfg_file, 'r') as f:
-            cfg = edict(yaml.load(f))
-
-        self.cfg = cfg
-        self.img_size = cfg.IMG_SIZE
-        self.num_classes = cfg.NUM_CLASS
-        self.is_train = is_train
-
-        self.rnn_type = cfg.RNN_TYPE
-        self.max_time = cfg.MAX_TIME
-        self.hidden_unit = cfg.HIDDEN_UNIT
-
-        if self.is_train:
-            self.batch_size = cfg.TRAIN.BATCH_SIZE
-        else:
-            self.batch_size = cfg.TEST.BATCH_SIZE
-        self.layers = {}
-        self.params = {}
-
-    def build(self):
-        self.input = tf.placeholder(dtype=tf.float32,
-                                    shape=[self.batch_size, self.max_time, self.img_size[0], self.img_size[1], self.img_size[2]])
-        self.blined_gt = tf.placeholder(dtype=tf.int32, shape=[self.batch_size])
-        self.eye_state_gt = tf.placeholder(dtype=tf.int32, shape=[self.batch_size, self.max_time])
-        self.seq_len = tf.placeholder(dtype=tf.int32, shape=[self.batch_size])
-
-        self.vgg16_fc6 = self._vgg16(self.input)
-        self.rnn_out = self._rnn_cell(self.vgg16_fc6)
-        self.out = self._fc(self.rnn_out)
-        self.prob = tf.nn.softmax(self.out, dim=-1)
-
-    def _vgg16(self, input):
-        # Reshape from NxTxHxWxC to (NxT)xHxWxC
-        input = tf.reshape(input, [-1, self.img_size[0], self.img_size[1], self.img_size[2]])
-        layers = base.get_vgg16_pool5(input, self.params)
-        layers.fc6 = net_ops.fully_connected(input=layers.pool5, num_neuron=4096, name='fc6', params=self.params)
-        if self.is_train:
-            layers.fc6 = tf.nn.dropout(layers.fc6, keep_prob=0.5)
-        layers.fc6_relu = net_ops.activate(input=layers.fc6, act_type='relu', name='fc6_relu')
-        cnn_out = tf.reshape(layers.fc6_relu, [-1, self.max_time, 4096])
-        return cnn_out
-
-    def _rnn_cell(self, input):
-        with tf.variable_scope('rnn_cell'):
-            size = np.prod(input.get_shape().as_list()[2:])
-            rnn_inputs = tf.reshape(input, (-1, self.max_time, size))
-            if self.rnn_type == 'LSTM':
-                cell = tf.contrib.rnn.LSTMCell(self.hidden_unit)
-            elif self.rnn_type == 'GRU':
-                cell = tf.contrib.rnn.GRUCell(self.hidden_unit)
+    def __init__(self, num_class=2):
+        super(BlinkCNN, self).__init__()
+        self.conv_names = []
+        self.layer_order = []
+        in_channels = 3
+        for layer in VGG16_LAYERS:
+            if layer == "pool":
+                self.layer_order.append("pool")
             else:
-                raise ValueError('We only support LSTM or GRU...')
-            rnn_outputs, _ = tf.nn.dynamic_rnn(
-                cell,
-                rnn_inputs,
-                sequence_length=self.seq_len,
-                dtype = tf.float32
+                name, out_channels = layer
+                setattr(
+                    self,
+                    name,
+                    nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+                )
+                self.conv_names.append(name)
+                self.layer_order.append(name)
+                in_channels = out_channels
+        self.fc6 = nn.Linear(7 * 7 * 512, 4096)
+        self.fc7 = nn.Linear(4096, 4096)
+        self.fc8 = nn.Linear(4096, num_class)
+        self.dropout = nn.Dropout(p=0.5)
+
+    def forward(self, x):
+        for layer in self.layer_order:
+            if layer == "pool":
+                x = F.max_pool2d(x, kernel_size=2, stride=2)
+            else:
+                x = F.relu(getattr(self, layer)(x))
+        # TensorFlow flattens in NHWC order, keep that order so the original fc6 weights apply
+        x = x.permute(0, 2, 3, 1).contiguous().view(x.size(0), -1)
+        # As in the original: fully-connected -> dropout (training only) -> relu
+        x = F.relu(self.dropout(self.fc6(x)))
+        x = F.relu(self.dropout(self.fc7(x)))
+        return self.fc8(x)
+
+
+# =============================================================================
+# Experiment wrapper, binary (real/fake) output as used in the degree project.
+# =============================================================================
+class Ictu_Oculi(nn.Module):
+    """Ictu Oculi (CNN-VGG16) with binary output (0 = real, 1 = deepfake)."""
+
+    input_size = [3, 224, 224]
+    # The original network takes BGR pixel values in the range 0-255 without mean subtraction
+    # (PIXEL_MEAN is disabled in blink_cnn.yml). ToTensor() scales to 0-1, so std = 1/255
+    # brings the values back to 0-255, and forward() swaps RGB to BGR.
+    mean = [0.0, 0.0, 0.0]
+    std = [1 / 255.0, 1 / 255.0, 1 / 255.0]
+
+    # Folder (inside the pre-trained models folder) with the authors' TensorFlow checkpoint (ckpt_CNN)
+    pretrained_folder = "ictu_oculi"
+
+    def __init__(self):
+        super(Ictu_Oculi, self).__init__()
+        self.net = BlinkCNN(num_class=2)
+        self.criterion = nn.CrossEntropyLoss()
+
+    def forward(self, x):
+        x = x[:, [2, 1, 0], :, :]  # RGB -> BGR
+        return self.net(x)
+
+    def loss(self, outputs, labels):
+        return self.criterion(outputs, labels)
+
+    def fake_probability(self, outputs):
+        return F.softmax(outputs, dim=1)[:, 1]
+
+    def trainable_parameters(self):
+        return self.parameters()
+
+    def load_pretrained(self, folder):
+        self.net.load_state_dict(
+            _convert_tf_checkpoint(
+                os.path.join(folder, self.pretrained_folder), self.net
             )
-            return rnn_outputs
+        )
 
-    def _avg_rnn_out(self, rnn_out):
-        seq_len = tf.cast(self.seq_len, dtype=tf.float32)
-        avg = tf.reduce_sum(rnn_out, axis=1) / tf.expand_dims(seq_len, axis=-1)
-        return avg
 
-    def _fc(self, input):
-        # Reshape from NxTx256 to (NxT)x256
-        input = tf.reshape(input, [-1, self.hidden_unit])
-        out = net_ops.fully_connected(input=input, num_neuron=self.num_classes, name='fc_after_rnn', params=self.params)
-        out = tf.reshape(out, [-1, self.max_time, self.num_classes])
-        return out
+def _convert_tf_checkpoint(folder, net):
+    """Reads the authors' TensorFlow checkpoint and converts the weights to PyTorch layout."""
+    import tensorflow as tf  # only needed to read the original checkpoint
 
-    def loss(self):
-        self.net_loss = []
-        for batch_id in range(self.batch_size):
-            out_cur = self.out[batch_id, :, :]
-            eye_state_cur = self.eye_state_gt[batch_id, :]
-            weights = tf.gather(tf.constant(self.cfg.TRAIN.CLASS_WEIGHTS, dtype=tf.float32), eye_state_cur)
-            loss_per_batch = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=eye_state_cur, logits=out_cur)  # T x num_class
-            loss_per_batch = loss_per_batch * weights
-            # Select loss by real len
-            seq_len = tf.cast(self.seq_len[batch_id], dtype=tf.float32)
-            tf_idx = tf.range(0, self.seq_len[batch_id])
-            loss_per_batch = tf.reduce_sum(tf.gather(loss_per_batch, tf_idx, axis=0)) / seq_len
-            self.net_loss.append(loss_per_batch)
-        self.net_loss = tf.reduce_mean(self.net_loss)
-        tf.losses.add_loss(self.net_loss)
-        # L2 weight regularize
-        self.L2_loss = tf.reduce_mean([self.cfg.TRAIN.BETA * tf.nn.l2_loss(v)
-                                       for v in tf.trainable_variables() if 'weights' in v.name or 'kernel' in v.name])
-        tf.losses.add_loss(self.L2_loss)
-        self.total_loss = tf.losses.get_total_loss()
+    checkpoint = tf.train.latest_checkpoint(folder)
+    if checkpoint is None:
+        index_files = sorted(
+            glob.glob(os.path.join(folder, "**", "*.index"), recursive=True)
+        )
+        if not index_files:
+            raise FileNotFoundError(
+                "No TensorFlow checkpoint found in {}".format(folder)
+            )
+        checkpoint = index_files[-1][: -len(".index")]
+    reader = tf.train.load_checkpoint(checkpoint)
+    variables = [
+        name
+        for name in reader.get_variable_to_shape_map()
+        if not any(
+            slot in name for slot in ("Momentum", "Adam", "RMSProp", "global_step")
+        )
+    ]
+
+    def tf_variable(layer, kind):
+        matches = [
+            name
+            for name in variables
+            if name == "{}/{}".format(layer, kind)
+            or name.endswith("/{}/{}".format(layer, kind))
+        ]
+        if len(matches) != 1:
+            raise KeyError(
+                "Expected one variable for {}/{} in checkpoint, found {}".format(
+                    layer, kind, matches
+                )
+            )
+        return reader.get_tensor(matches[0])
+
+    state_dict = {}
+    for layer in net.conv_names:
+        # TensorFlow conv kernel [h, w, in, out] -> PyTorch [out, in, h, w]
+        state_dict[layer + ".weight"] = torch.from_numpy(
+            np.transpose(tf_variable(layer, "weights"), (3, 2, 0, 1)).copy()
+        )
+        state_dict[layer + ".bias"] = torch.from_numpy(tf_variable(layer, "biases"))
+    for layer in ("fc6", "fc7", "fc8"):
+        # TensorFlow dense kernel [in, out] -> PyTorch [out, in]
+        state_dict[layer + ".weight"] = torch.from_numpy(
+            np.transpose(tf_variable(layer, "weights")).copy()
+        )
+        state_dict[layer + ".bias"] = torch.from_numpy(tf_variable(layer, "biases"))
+    return state_dict

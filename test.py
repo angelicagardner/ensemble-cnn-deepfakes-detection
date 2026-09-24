@@ -1,103 +1,129 @@
-import argparse, os
-import numpy as np
+import os
 import pandas as pd
-from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, roc_auc_score, average_precision_score
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from tqdm import tqdm
 
-from models.Capsule import Capsule
-from models.DSP_FWA import DSP_FWA
-from models.Ictu_Oculi import Ictu_Oculi
-from models.XceptionNet import Xception
+from sacred import Experiment
+from sacred.observers import FileStorageObserver
 
-from data.average import Average
 from data.dataset_loader import CSVDataset
+from metrics import predict, order_like_split, evaluate, roc_points
+from models import create_model
 
-def test(model, data_path, splits_path, test_csv, device="cpu"):
-    transform = transforms.Compose([
-        transforms.Resize((model.input_size[1], model.input_size[1])),
-        transforms.ToTensor(),
-        transforms.Normalize(model.mean, model.std)
-    ])
+# Set up experiment
+ex = Experiment("test")
+ex.observers.append(
+    FileStorageObserver.create("results/experiments")
+)  # Sacred output folder
 
-    dataset = CSVDataset(data_path, splits_path + test_csv, 'frame_id', 'deepfake', transform=transform)
-    dataloader = DataLoader(dataset)
 
+# Add default configurations
+@ex.config
+def cfg():
+    home = os.getcwd()
+
+    data_path = os.path.join(
+        home, "data/images/"
+    )  # path to video frames (folder containing images)
+    splits_path = os.path.join(
+        home, "data/splits/"
+    )  # path to CSV files with information about train, validation, and test splits
+    output_path = os.path.join(
+        home, "results/"
+    )  # path to output folder where the results should be stored
+    models_retrained_path = os.path.join(
+        home, "models/re_trained/"
+    )  # path to load the re-trained models
+    test_csv = "test.csv"
+    batch_size = 32
+    model_name = None
+
+
+def test(model, data_path, splits_path, test_csv, batch_size, device):
+    size = model.input_size[1]
+    transform = transforms.Compose(
+        [
+            transforms.Resize((size, size)),
+            transforms.ToTensor(),
+            transforms.Normalize(model.mean, model.std),
+        ]
+    )
+
+    split = pd.read_csv(os.path.join(splits_path, test_csv))
+    dataset = CSVDataset(
+        data_path,
+        os.path.join(splits_path, test_csv),
+        "frame_id",
+        "deepfake",
+        transform=transform,
+    )
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+    # Evaluation mode (PyTorch models are in training mode by default)
     model.eval()
     model.to(device)
-    criterion = nn.BCELoss()
-    
-    losses = Average()
-    predictions = pd.DataFrame(columns=['frame_id', 'label', 'score'])
+    loss, predictions = predict(model, dataloader, device)
+    predictions = order_like_split(predictions, split)
 
-    for i, data in enumerate(tqdm(dataloader)):
-        (inputs, labels), name = data
+    results = evaluate(predictions, split)
+    results["loss"] = loss
+    return results, predictions
 
-        inputs = inputs.to(device)
-        labels = labels.to(device)
 
-        with torch.no_grad():
-            outputs = model(inputs)
-            score = F.softmax(outputs, dim=1)[:, 1].cpu().data.numpy()
-            loss = criterion(outputs, labels)
+# Main function
+@ex.automain
+def main(
+    data_path,
+    splits_path,
+    output_path,
+    models_retrained_path,
+    test_csv,
+    batch_size,
+    model_name,
+    _run,
+):
 
-        losses.update(loss.item(), inputs.size(0))
+    METRICS_DIR = os.path.join(output_path, "model_metrics/test")
+    PREDICTIONS_DIR = os.path.join(output_path, "model_predictions/test")
+    for folder in (METRICS_DIR, PREDICTIONS_DIR):
+        if not os.path.exists(folder):
+            os.makedirs(folder)
 
-        predictions = predictions.append(
-            {'frame_id': name[0],
-            'label': labels.data[0].item(),
-            'score': score.mean()},
-            ignore_index=True)
-
-    all_labels = predictions['label'].values.astype(int)
-    all_scores = np.rint(predictions['score'].values).astype(int)
-
-    # Calculate evaluation metrics
-    auc = roc_auc_score(all_labels, all_scores, labels=[0,1])
-    acc = accuracy_score(all_labels, all_scores)
-    conf_matrix = confusion_matrix(all_labels, all_scores, labels=[0,1])
-    tn, fp, fn, tp = conf_matrix.ravel()
-    specificity = tn / (tn+fp)
-    sensitivity = tp / (tp+fn)
-        
-    return ({'loss': losses.avg, 'auc': auc, 'acc': acc, 'spec': specificity, 'sens': sensitivity, 'cm': conf_matrix}, predictions)
-
-def main():
-    # Command-line arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', help='Name of model to be tested', required=True, default=None)
-    parser.add_argument('--models_path', help='Path to re-trained model', required=True, default=os.path.join(os.getcwd(), 'models/'))
-    parser.add_argument('--models_retrained_path', help='path to load re-trained models', required=True, default=os.path.join(os.getcwd(), 'models/re_trained/'))
-    parser.add_argument('--data_path', help='Path to folder where images/video frames are stored', required=True, default=os.path.join(os.getcwd(), 'data/images/'))
-    parser.add_argument('--splits_path', help='Path to CSV files with information about train, validation, and test sets', required=True, default=os.path.join(os.getcwd(), 'data/splits/'))
-    parser.add_argument('--test_csv', help="Test split CSV file", required=True, default=os.path.join(os.getcwd(), 'test.csv'))
-    parser.add_argument('--output_path', help="Folder where the output results will be saved", default=os.path.join(os.getcwd(), 'results/'))
-
-    args = parser.parse_args()
-
+    # CPU or GPU utilisation
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Load model
-    if args.model_name == 'capsule':
-        model = Capsule()
-    elif args.model_name == 'dsp-fwa':
-        model = DSP_FWA()
-    elif args.model_name == 'ictu_oculi':
-        model = Ictu_Oculi()
-    elif args.model_name == 'xceptionnet':
-        model = Xception()
-    model.load_state_dict(torch.load(os.path.join(args.models_retrained_path, args.model_name.upper() + './pth')))
+    # Load the re-trained model (best version saved during training)
+    model = create_model(model_name)
+    model.load_state_dict(
+        torch.load(
+            os.path.join(models_retrained_path, model_name + ".pth"), map_location="cpu"
+        )
+    )
+    print("Model: {}".format(model_name.upper()))
 
     # Make predictions on test set
-    test_results = test(model, args.data_path, args.splits_path, args.test_csv, device)
+    results, predictions = test(
+        model, data_path, splits_path, test_csv, batch_size, device
+    )
+    results["model"] = model_name
+    print(results)
 
-    # Save evaluation metrics
-    print(test_results[0])
-    test_results[1].to_csv(os.path.join(args.output_path + 'model_metrics/test/', 'scores_' + args.model_name + '_' + '.csv'), index=False)
+    # Save predictions and evaluation metrics
+    predictions.to_csv(
+        os.path.join(PREDICTIONS_DIR, "test_predictions_" + model_name + ".csv"),
+        index=False,
+    )
+    pd.DataFrame([results]).to_csv(
+        os.path.join(METRICS_DIR, "test_scores_" + model_name + ".csv"), index=False
+    )
+    roc_points(predictions).to_csv(
+        os.path.join(METRICS_DIR, "test_roc_" + model_name + ".csv"), index=False
+    )
 
-if __name__ == '__main__':
-    main()
+    for key, value in results.items():
+        if key != "model":
+            _run.log_scalar(key, value)
+    for prefix in ("test_scores_", "test_roc_"):
+        ex.add_artifact(os.path.join(METRICS_DIR, prefix + model_name + ".csv"))
+    return results
